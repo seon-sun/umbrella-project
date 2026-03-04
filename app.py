@@ -33,6 +33,7 @@ def all_umbrellas():
     cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
     rented_count = cur.fetchone()["cnt"] if valid_student_id(student_id) else 0
 
+    # 대여 처리
     if rent_id and valid_student_id(student_id):
         cur.execute("SELECT status FROM umbrellas WHERE id=?", (rent_id,))
         umbrella = cur.fetchone()
@@ -45,6 +46,7 @@ def all_umbrellas():
                 message = f"{rent_id}번 우산 대여 완료"
         else:
             message = "이미 대여 중인 우산입니다."
+    # 반납 처리
     elif return_id and valid_student_id(student_id):
         cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (return_id,))
         umbrella = cur.fetchone()
@@ -63,14 +65,13 @@ def all_umbrellas():
 
     <!-- 모바일 즉시 대응 JS -->
     <script>
-    document.addEventListener("DOMContentLoaded", function(){
-        if (/Mobi|Android/i.test(navigator.userAgent)) {
+    function applyMobileClass(){
+        if(/Mobi|Android/i.test(navigator.userAgent)){
             document.body.classList.add('mobile');
-            document.body.style.display='none';
-            document.body.offsetHeight;
-            document.body.style.display='';
         }
-    });
+    }
+    applyMobileClass();
+    window.addEventListener('resize', applyMobileClass);
     </script>
 
     <style>
@@ -103,7 +104,7 @@ def all_umbrellas():
                     <button type="submit" name="rent_id" value="{{ u.id }}" class="rentBtn">대여하기</button>
                 {% else %}
                     🔴 대여 중
-                    {% if u.student_id == student_id %}
+                    {% if u.student_id and u.student_id == student_id %}
                         <button type="submit" name="return_id" value="{{ u.id }}" class="returnBtn">반납하기</button>
                     {% endif %}
                 {% endif %}
@@ -167,14 +168,13 @@ def umbrella(num):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <script>
-    document.addEventListener("DOMContentLoaded", function(){
-        if (/Mobi|Android/i.test(navigator.userAgent)) {
+    function applyMobileClass(){
+        if(/Mobi|Android/i.test(navigator.userAgent)){
             document.body.classList.add('mobile');
-            document.body.style.display='none';
-            document.body.offsetHeight;
-            document.body.style.display='';
         }
-    });
+    }
+    applyMobileClass();
+    window.addEventListener('resize', applyMobileClass);
     </script>
 
     <style>
@@ -197,7 +197,7 @@ def umbrella(num):
         <input type="text" name="student_id" id="student_id" placeholder="학번 입력" value="">
         <small>정확한 학번을 입력해주세요 (10자리 숫자)</small>
         <br><br>
-        {% if u.status=='available' or u.student_id==request.form.get('student_id') %}
+        {% if u.status=='available' or (u.student_id and u.student_id == request.form.get('student_id')) %}
             <button type="submit" id="actionBtn">{% if u.status=='available' %}대여하기{% else %}반납하기{% endif %}</button>
         {% endif %}
     </form>
