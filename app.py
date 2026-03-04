@@ -1,6 +1,5 @@
 from flask import Flask, request, redirect, render_template_string
 import sqlite3
-from urllib.parse import urlencode
 
 app = Flask(__name__)
 
@@ -13,39 +12,38 @@ def get_db():
     return conn
 
 # ------------------
-# 전체 우산 대여 페이지
+# 전체 페이지 (사용자용)
 # ------------------
 @app.route("/u/all", methods=["GET", "POST"])
 def all_umbrellas():
     conn = get_db()
     cur = conn.cursor()
 
-    student_id = request.values.get("student_id", "")
+    student_id = request.form.get("student_id") or ""
     rent_id = request.form.get("rent_id")
     return_id = request.form.get("return_id")
 
-    # 현재 학번이 이미 빌린 우산 수
-    student_count = 0
+    # 현재 학번이 빌린 우산 개수 확인
+    rented_count = 0
     if student_id:
         cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
-        student_count = cur.fetchone()["cnt"]
+        rented_count = cur.fetchone()["cnt"]
 
     # 대여 처리
     if rent_id and student_id:
         cur.execute("SELECT status FROM umbrellas WHERE id=?", (rent_id,))
         umbrella = cur.fetchone()
-        if umbrella["status"] == "available" and student_count < 2:
+        if umbrella["status"] == "available" and rented_count < 2:
             cur.execute(
                 "UPDATE umbrellas SET status='rented', student_id=? WHERE id=?",
                 (student_id, rent_id)
             )
             conn.commit()
-        # redirect로 student_id 유지
-        return redirect(f"/u/all?{urlencode({'student_id': student_id})}")
+            rented_count += 1
 
     # 반납 처리 (본인만 가능)
     if return_id and student_id:
-        cur.execute("SELECT student_id FROM umbrellas WHERE id=?", (return_id,))
+        cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (return_id,))
         umbrella = cur.fetchone()
         if umbrella["student_id"] == student_id:
             cur.execute(
@@ -53,38 +51,57 @@ def all_umbrellas():
                 (return_id,)
             )
             conn.commit()
-        return redirect(f"/u/all?{urlencode({'student_id': student_id})}")
+            rented_count -= 1
 
-    # 전체 우산 조회
+    # 전체 우산 상태 조회
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
     umbrellas = cur.fetchall()
 
-    # HTML 템플릿 (모바일/웹 대응)
+    # HTML + JS (모바일/웹 대응, 학번 입력 즉시 버튼 활성화)
     html = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <h1>전체 우산 대여 페이지</h1>
-    <form method="POST">
-        <input type="text" name="student_id" placeholder="학번 입력" required value="{{ student_id }}">
+    <form method="POST" id="umbrellaForm">
+        <input type="text" name="student_id" placeholder="학번 입력" required id="student_id" value="{{ student_id }}">
         <br><br>
         {% for u in umbrellas %}
-            <div style="margin-bottom:10px; border-bottom:1px solid #ccc; padding-bottom:5px;">
+            <div style="margin-bottom:10px;">
                 <strong>{{ u.id }}번 우산:</strong>
                 {% if u.status == 'available' %}
                     🟢 사용 가능
-                    {% if student_id and student_count < 2 %}
-                        <button type="submit" name="rent_id" value="{{ u.id }}">대여하기</button>
-                    {% endif %}
+                    <button type="submit" name="rent_id" value="{{ u.id }}" class="rentBtn">대여하기</button>
                 {% else %}
                     🔴 대여 중
-                    {% if student_id and u.student_id == student_id %}
-                        <button type="submit" name="return_id" value="{{ u.id }}">반납하기</button>
+                    {% if u.student_id == student_id %}
+                        <button type="submit" name="return_id" value="{{ u.id }}" class="returnBtn">반납하기</button>
                     {% endif %}
                 {% endif %}
             </div>
         {% endfor %}
     </form>
+
+    <script>
+    function validateStudentID(id) {
+        // 10자리 숫자 + /304/NNN 패턴
+        let pattern = /^\\d{4}\\/304\\/\\d{3}$/;
+        return pattern.test(id);
+    }
+
+    function updateButtons() {
+        let studentInput = document.getElementById("student_id").value;
+        let valid = validateStudentID(studentInput);
+        let rentButtons = document.querySelectorAll(".rentBtn");
+        let returnButtons = document.querySelectorAll(".returnBtn");
+        rentButtons.forEach(b => b.disabled = !valid);
+        returnButtons.forEach(b => b.disabled = !valid);
+    }
+
+    document.getElementById("student_id").addEventListener("input", updateButtons);
+    window.addEventListener("load", updateButtons);
+    </script>
     """
-    return render_template_string(html, umbrellas=umbrellas, student_id=student_id, student_count=student_count)
+    return render_template_string(html, umbrellas=umbrellas, student_id=student_id)
+
 
 # ------------------
 # 개별 우산 페이지
@@ -93,65 +110,56 @@ def all_umbrellas():
 def umbrella(num):
     conn = get_db()
     cur = conn.cursor()
+    student_id = request.form.get("student_id") or ""
 
-    student_id = request.values.get("student_id", "")
+    # 현재 학번 대여 개수 확인
+    rented_count = 0
+    if student_id:
+        cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
+        rented_count = cur.fetchone()["cnt"]
+
     if request.method == "POST":
-        student_id = request.form.get("student_id", "")
-        rent = request.form.get("rent")
-        ret = request.form.get("return")
+        cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (num,))
+        u = cur.fetchone()
+        if u["status"] == "available" and rented_count < 2:
+            cur.execute("UPDATE umbrellas SET status='rented', student_id=? WHERE id=?", (student_id, num))
+            conn.commit()
+        elif u["status"] == "rented" and u["student_id"] == student_id:
+            cur.execute("UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?", (num,))
+            conn.commit()
+        return redirect(f"/u/{num}")
 
-        # 현재 학번이 빌린 수
-        student_count = 0
-        if student_id:
-            cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
-            student_count = cur.fetchone()["cnt"]
-
-        if rent and student_id:
-            cur.execute("SELECT status FROM umbrellas WHERE id=?", (num,))
-            umbrella = cur.fetchone()
-            if umbrella["status"] == "available" and student_count < 2:
-                cur.execute(
-                    "UPDATE umbrellas SET status='rented', student_id=? WHERE id=?",
-                    (student_id, num)
-                )
-                conn.commit()
-            return redirect(f"/u/{num}?{urlencode({'student_id': student_id})}")
-
-        if ret and student_id:
-            cur.execute("SELECT student_id FROM umbrellas WHERE id=?", (num,))
-            umbrella = cur.fetchone()
-            if umbrella["student_id"] == student_id:
-                cur.execute(
-                    "UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?",
-                    (num,)
-                )
-                conn.commit()
-            return redirect(f"/u/{num}?{urlencode({'student_id': student_id})}")
-
-    # 우산 조회
     cur.execute("SELECT * FROM umbrellas WHERE id=?", (num,))
     u = cur.fetchone()
 
-    # 학번이 빌린 수
-    student_count = 0
-    if student_id:
-        cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
-        student_count = cur.fetchone()["cnt"]
-
-    html = """
+    html = f"""
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <h2>{{ u.id }}번 우산 상태</h2>
-    <p>상태: {% if u.status == 'available' %}🟢 사용 가능{% else %}🔴 대여 중{% endif %}</p>
+    <h2>{num}번 우산</h2>
     <form method="POST">
-        <input type="text" name="student_id" placeholder="학번 입력" required value="{{ student_id }}">
-        {% if u.status == 'available' and student_id and student_count < 2 %}
-            <button type="submit" name="rent" value="1">대여하기</button>
-        {% elif u.status == 'rented' and u.student_id == student_id %}
-            <button type="submit" name="return" value="1">반납하기</button>
-        {% endif %}
+        <input type="text" name="student_id" id="student_id" placeholder="학번 입력" required value="{student_id}">
+        <br>
+        <span>{'🟢 사용 가능' if u['status']=='available' else f'🔴 대여 중'}</span>
+        <br>
+        <button type="submit" name="rent_id" value="{num}" class="rentBtn">대여하기</button>
+        <button type="submit" name="return_id" value="{num}" class="returnBtn">반납하기</button>
     </form>
+    <script>
+    function validateStudentID(id) {{
+        let pattern = /^\\d{{4}}\\/304\\/\\d{{3}}$/;
+        return pattern.test(id);
+    }}
+    function updateButtons() {{
+        let studentInput = document.getElementById("student_id").value;
+        let valid = validateStudentID(studentInput);
+        document.querySelector(".rentBtn").disabled = !valid || {u['status']=='rented' and u['student_id'] != student_id};
+        document.querySelector(".returnBtn").disabled = !valid || {u['status']=='available' or u['student_id'] != student_id};
+    }}
+    document.getElementById("student_id").addEventListener("input", updateButtons);
+    window.addEventListener("load", updateButtons);
+    </script>
     """
-    return render_template_string(html, u=u, student_id=student_id, student_count=student_count)
+    return html
+
 
 # ------------------
 # 관리자 페이지
@@ -166,13 +174,10 @@ def admin_page():
     conn = get_db()
     cur = conn.cursor()
 
-    # 강제 반납 처리
+    # 강제 반납
     force_return_id = request.form.get("force_return_id")
     if force_return_id:
-        cur.execute(
-            "UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?",
-            (force_return_id,)
-        )
+        cur.execute("UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?", (force_return_id,))
         conn.commit()
 
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
@@ -183,7 +188,7 @@ def admin_page():
     <h1>관리자 페이지</h1>
     <form method="POST">
         {% for u in umbrellas %}
-            <div style="margin-bottom:10px; border-bottom:1px solid #ccc; padding-bottom:5px;">
+            <div style="margin-bottom:10px;">
                 <strong>{{ u.id }}번 우산</strong> - {{ u.status }} - 학번: {{ u.student_id }}
                 {% if u.status == 'rented' %}
                     <button type="submit" name="force_return_id" value="{{ u.id }}">강제 반납</button>
@@ -193,6 +198,7 @@ def admin_page():
     </form>
     """
     return render_template_string(html, umbrellas=umbrellas)
+
 
 # ------------------
 if __name__ == "__main__":
