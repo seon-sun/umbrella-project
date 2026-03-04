@@ -12,7 +12,7 @@ def get_db():
     return conn
 
 # ------------------
-# 사용자 페이지 (대여자)
+# 사용자 페이지 (전체 우산)
 # ------------------
 @app.route("/u/all", methods=["GET", "POST"])
 def all_umbrellas():
@@ -23,25 +23,24 @@ def all_umbrellas():
     rent_id = request.form.get("rent_id")
     return_id = request.form.get("return_id")
 
-    # 현재 학번이 대여 중인 우산 수 확인
-    rented_count = 0
-    if student_id:
-        cur.execute("SELECT COUNT(*) FROM umbrellas WHERE student_id=? AND status='rented'", (student_id,))
-        rented_count = cur.fetchone()[0]
-
     # 대여 처리
     if rent_id and student_id:
+        # 학생이 현재 몇 개 빌렸는지 체크
+        cur.execute("SELECT COUNT(*) AS cnt FROM umbrellas WHERE student_id=?", (student_id,))
+        count = cur.fetchone()["cnt"]
+
+        if count >= 2:
+            return f"{student_id} 학번은 이미 2개 이상 우산을 대여 중입니다."
+
+        # 우산 상태 확인 후 대여
         cur.execute("SELECT status FROM umbrellas WHERE id=?", (rent_id,))
         umbrella = cur.fetchone()
         if umbrella["status"] == "available":
-            if rented_count < 2:
-                cur.execute(
-                    "UPDATE umbrellas SET status='rented', student_id=? WHERE id=?",
-                    (student_id, rent_id)
-                )
-                conn.commit()
-            else:
-                return f"한 학번당 최대 2개의 우산만 대여 가능합니다. (현재 대여 중: {rented_count})"
+            cur.execute(
+                "UPDATE umbrellas SET status='rented', student_id=? WHERE id=?",
+                (student_id, rent_id)
+            )
+            conn.commit()
 
     # 반납 처리 (본인만 가능)
     elif return_id and student_id:
@@ -53,6 +52,8 @@ def all_umbrellas():
                 (return_id,)
             )
             conn.commit()
+        else:
+            return "본인 학번으로만 반납 가능합니다."
 
     # 전체 우산 상태 조회
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
@@ -69,10 +70,8 @@ def all_umbrellas():
                 <strong>{{ u.id }}번 우산:</strong>
                 {% if u.status == 'available' %}
                     🟢 사용 가능
-                    {% if student_id and rented_count < 2 %}
+                    {% if student_id %}
                         <button type="submit" name="rent_id" value="{{ u.id }}">대여하기</button>
-                    {% elif student_id %}
-                        <span style="color:red;">이미 2개 대여 중</span>
                     {% endif %}
                 {% else %}
                     🔴 대여 중
@@ -84,18 +83,17 @@ def all_umbrellas():
         {% endfor %}
     </form>
     """
-    return render_template_string(html, umbrellas=umbrellas, student_id=student_id, rented_count=rented_count)
+    return render_template_string(html, umbrellas=umbrellas, student_id=student_id)
 
 # ------------------
 # 관리자 페이지
 # ------------------
 @app.route("/admin", methods=["GET", "POST"])
 def admin_page():
-    # 간단 비밀번호 인증 (예: URL 뒤에 ?pass=0927)
-    admin_pass = "0927"
+    admin_pass = "0927"  # 원하는 비밀번호로 변경 가능
     input_pass = request.args.get("pass")
     if input_pass != admin_pass:
-        return "관리자 인증 필요. URL 뒤에 ?pass=0927 를 붙여주세요."
+        return "관리자 인증 필요. URL 뒤에 ?pass=비밀번호 를 붙여주세요."
 
     conn = get_db()
     cur = conn.cursor()
@@ -113,7 +111,6 @@ def admin_page():
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
     umbrellas = cur.fetchall()
 
-    # 관리자 HTML
     html = """
     <h1>관리자 페이지</h1>
     <form method="POST">
@@ -130,7 +127,7 @@ def admin_page():
     return render_template_string(html, umbrellas=umbrellas)
 
 # ------------------
-# 기존 개별 우산 페이지 (선택)
+# 기존 개별 우산 페이지
 # ------------------
 @app.route("/u/<int:num>", methods=["GET", "POST"])
 def umbrella(num):
@@ -139,6 +136,13 @@ def umbrella(num):
 
     if request.method == "POST":
         student_id = request.form.get("student_id")
+
+        # 학생이 이미 2개 이상 빌렸는지 확인
+        cur.execute("SELECT COUNT(*) AS cnt FROM umbrellas WHERE student_id=?", (student_id,))
+        count = cur.fetchone()["cnt"]
+        if count >= 2:
+            return f"{student_id} 학번은 이미 2개 이상 우산을 대여 중입니다."
+
         cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (num,))
         umbrella = cur.fetchone()
 
