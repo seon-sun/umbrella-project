@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, render_template_string
+from flask import Flask, request, render_template_string
 import sqlite3
 import re
 
@@ -30,11 +30,9 @@ def all_umbrellas():
     rent_id = request.form.get("rent_id")
     return_id = request.form.get("return_id")
 
-    # 현재 학번 대여 수
     cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
     rented_count = cur.fetchone()["cnt"] if valid_student_id(student_id) else 0
 
-    # 대여 처리
     if rent_id and valid_student_id(student_id):
         cur.execute("SELECT status FROM umbrellas WHERE id=?", (rent_id,))
         umbrella = cur.fetchone()
@@ -47,8 +45,6 @@ def all_umbrellas():
                 message = f"{rent_id}번 우산 대여 완료"
         else:
             message = "이미 대여 중인 우산입니다."
-
-    # 반납 처리
     elif return_id and valid_student_id(student_id):
         cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (return_id,))
         umbrella = cur.fetchone()
@@ -59,7 +55,6 @@ def all_umbrellas():
         else:
             message = "본인이 대여한 우산만 반납 가능합니다."
 
-    # 전체 우산 조회
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
     umbrellas = cur.fetchall()
 
@@ -68,17 +63,16 @@ def all_umbrellas():
 
     <!-- 모바일 즉시 대응 JS -->
     <script>
-    (function(){
+    document.addEventListener("DOMContentLoaded", function(){
         if (/Mobi|Android/i.test(navigator.userAgent)) {
             document.body.classList.add('mobile');
             document.body.style.display='none';
             document.body.offsetHeight;
             document.body.style.display='';
         }
-    })();
+    });
     </script>
 
-    <!-- 모바일 대응 CSS -->
     <style>
     body { font-family: Arial, sans-serif; }
     .container { max-width: 1200px; margin: auto; }
@@ -117,7 +111,6 @@ def all_umbrellas():
         {% endfor %}
     </form>
 
-    <!-- 학번 유효성 체크 및 버튼 활성화 -->
     <script>
     const studentInput = document.getElementById("student_id");
     const rentBtns = document.querySelectorAll(".rentBtn");
@@ -173,19 +166,17 @@ def umbrella(num):
     html_single = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- 모바일 즉시 대응 JS -->
     <script>
-    (function(){
+    document.addEventListener("DOMContentLoaded", function(){
         if (/Mobi|Android/i.test(navigator.userAgent)) {
             document.body.classList.add('mobile');
             document.body.style.display='none';
             document.body.offsetHeight;
             document.body.style.display='';
         }
-    })();
+    });
     </script>
 
-    <!-- 모바일 대응 CSS -->
     <style>
     body { font-family: Arial, sans-serif; }
 
@@ -211,7 +202,6 @@ def umbrella(num):
         {% endif %}
     </form>
 
-    <!-- 학번 유효성 체크 및 버튼 활성화 -->
     <script>
     const studentInput = document.getElementById("student_id");
     const actionBtn = document.getElementById("actionBtn");
