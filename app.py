@@ -69,7 +69,7 @@ def all_umbrellas():
     <p style="color:red;">{{ message }}</p>
     <form method="POST" id="umbrellaForm">
         <input type="text" name="student_id" id="student_id" placeholder="학번 입력" value="{{ student_id }}">
-        <small>정확한 학번을 입력해주세요 (YYYY304XXX)</small>
+        <small>정확한 학번을 입력해주세요 (10자리숫자)</small>
         <br><br>
         {% for u in umbrellas %}
             <div style="margin-bottom:10px;">
