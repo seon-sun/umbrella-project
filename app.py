@@ -12,25 +12,31 @@ def get_db():
     return conn
 
 # ------------------
-# 전체 페이지 (사용자용)
+# 학번 검증
+# ------------------
+def validate_student_id(student_id):
+    return student_id.isdigit() and len(student_id) == 10
+
+# ------------------
+# 사용자 전체 페이지 (대여자)
 # ------------------
 @app.route("/u/all", methods=["GET", "POST"])
 def all_umbrellas():
     conn = get_db()
     cur = conn.cursor()
 
-    student_id = request.form.get("student_id") or ""
+    student_id = request.form.get("student_id", "")
     rent_id = request.form.get("rent_id")
     return_id = request.form.get("return_id")
 
-    # 현재 학번이 빌린 우산 개수 확인
+    # 현재 학번이 이미 몇 개 빌렸는지 확인
     rented_count = 0
-    if student_id:
-        cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
+    if validate_student_id(student_id):
+        cur.execute("SELECT COUNT(*) AS cnt FROM umbrellas WHERE student_id=?", (student_id,))
         rented_count = cur.fetchone()["cnt"]
 
     # 대여 처리
-    if rent_id and student_id:
+    if rent_id and validate_student_id(student_id):
         cur.execute("SELECT status FROM umbrellas WHERE id=?", (rent_id,))
         umbrella = cur.fetchone()
         if umbrella["status"] == "available" and rented_count < 2:
@@ -39,11 +45,11 @@ def all_umbrellas():
                 (student_id, rent_id)
             )
             conn.commit()
-            rented_count += 1
+            return redirect("/u/all")
 
-    # 반납 처리 (본인만 가능)
-    if return_id and student_id:
-        cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (return_id,))
+    # 반납 처리
+    if return_id and validate_student_id(student_id):
+        cur.execute("SELECT student_id FROM umbrellas WHERE id=?", (return_id,))
         umbrella = cur.fetchone()
         if umbrella["student_id"] == student_id:
             cur.execute(
@@ -51,57 +57,40 @@ def all_umbrellas():
                 (return_id,)
             )
             conn.commit()
-            rented_count -= 1
+            return redirect("/u/all")
 
     # 전체 우산 상태 조회
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
     umbrellas = cur.fetchall()
 
-    # HTML + JS (모바일/웹 대응, 학번 입력 즉시 버튼 활성화)
     html = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <h1>전체 우산 대여 페이지</h1>
-    <form method="POST" id="umbrellaForm">
-        <input type="text" name="student_id" placeholder="학번 입력" required id="student_id" value="{{ student_id }}">
+    <form method="POST">
+        <input type="text" name="student_id" placeholder="학번 10자리 입력" value="{{ student_id }}" required>
         <br><br>
         {% for u in umbrellas %}
             <div style="margin-bottom:10px;">
                 <strong>{{ u.id }}번 우산:</strong>
                 {% if u.status == 'available' %}
                     🟢 사용 가능
-                    <button type="submit" name="rent_id" value="{{ u.id }}" class="rentBtn">대여하기</button>
+                    {% if validate_student_id(student_id) and rented_count < 2 %}
+                        <button type="submit" name="rent_id" value="{{ u.id }}">대여하기</button>
+                    {% else %}
+                        <button disabled>대여 불가</button>
+                    {% endif %}
                 {% else %}
                     🔴 대여 중
                     {% if u.student_id == student_id %}
-                        <button type="submit" name="return_id" value="{{ u.id }}" class="returnBtn">반납하기</button>
+                        <button type="submit" name="return_id" value="{{ u.id }}">반납하기</button>
                     {% endif %}
                 {% endif %}
             </div>
         {% endfor %}
     </form>
-
-    <script>
-    function validateStudentID(id) {
-        // 10자리 숫자 + /304/NNN 패턴
-        let pattern = /^\\d{4}\\/304\\/\\d{3}$/;
-        return pattern.test(id);
-    }
-
-    function updateButtons() {
-        let studentInput = document.getElementById("student_id").value;
-        let valid = validateStudentID(studentInput);
-        let rentButtons = document.querySelectorAll(".rentBtn");
-        let returnButtons = document.querySelectorAll(".returnBtn");
-        rentButtons.forEach(b => b.disabled = !valid);
-        returnButtons.forEach(b => b.disabled = !valid);
-    }
-
-    document.getElementById("student_id").addEventListener("input", updateButtons);
-    window.addEventListener("load", updateButtons);
-    </script>
     """
-    return render_template_string(html, umbrellas=umbrellas, student_id=student_id)
-
+    return render_template_string(html, umbrellas=umbrellas, student_id=student_id,
+                                  rented_count=rented_count, validate_student_id=validate_student_id)
 
 # ------------------
 # 개별 우산 페이지
@@ -110,63 +99,55 @@ def all_umbrellas():
 def umbrella(num):
     conn = get_db()
     cur = conn.cursor()
-    student_id = request.form.get("student_id") or ""
+    student_id = request.form.get("student_id", "")
 
-    # 현재 학번 대여 개수 확인
-    rented_count = 0
-    if student_id:
-        cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
-        rented_count = cur.fetchone()["cnt"]
-
-    if request.method == "POST":
+    # 대여 처리
+    if request.method == "POST" and validate_student_id(student_id):
         cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (num,))
-        u = cur.fetchone()
-        if u["status"] == "available" and rented_count < 2:
-            cur.execute("UPDATE umbrellas SET status='rented', student_id=? WHERE id=?", (student_id, num))
+        umbrella = cur.fetchone()
+        if umbrella["status"] == "available":
+            # 학번이 2개 이상 빌렸는지 체크
+            cur.execute("SELECT COUNT(*) AS cnt FROM umbrellas WHERE student_id=?", (student_id,))
+            rented_count = cur.fetchone()["cnt"]
+            if rented_count < 2:
+                cur.execute(
+                    "UPDATE umbrellas SET status='rented', student_id=? WHERE id=?",
+                    (student_id, num)
+                )
+                conn.commit()
+                return redirect(f"/u/{num}")
+        elif umbrella["student_id"] == student_id:
+            cur.execute(
+                "UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?",
+                (num,)
+            )
             conn.commit()
-        elif u["status"] == "rented" and u["student_id"] == student_id:
-            cur.execute("UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?", (num,))
-            conn.commit()
-        return redirect(f"/u/{num}")
+            return redirect(f"/u/{num}")
 
+    # 현재 우산 상태
     cur.execute("SELECT * FROM umbrellas WHERE id=?", (num,))
-    u = cur.fetchone()
+    umbrella = cur.fetchone()
 
-    html = f"""
+    html = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <h2>{num}번 우산</h2>
+    <h2>{{ num }}번 우산 {% if umbrella.status == 'available' %}🟢 사용 가능{% else %}🔴 대여 중{% endif %}</h2>
     <form method="POST">
-        <input type="text" name="student_id" id="student_id" placeholder="학번 입력" required value="{student_id}">
-        <br>
-        <span>{'🟢 사용 가능' if u['status']=='available' else f'🔴 대여 중'}</span>
-        <br>
-        <button type="submit" name="rent_id" value="{num}" class="rentBtn">대여하기</button>
-        <button type="submit" name="return_id" value="{num}" class="returnBtn">반납하기</button>
+        <input type="text" name="student_id" placeholder="학번 10자리 입력" value="{{ student_id }}" required>
+        {% if umbrella.status == 'available' %}
+            <button type="submit">대여하기</button>
+        {% elif umbrella.student_id == student_id %}
+            <button type="submit">반납하기</button>
+        {% endif %}
     </form>
-    <script>
-    function validateStudentID(id) {{
-        let pattern = /^\\d{{4}}\\/304\\/\\d{{3}}$/;
-        return pattern.test(id);
-    }}
-    function updateButtons() {{
-        let studentInput = document.getElementById("student_id").value;
-        let valid = validateStudentID(studentInput);
-        document.querySelector(".rentBtn").disabled = !valid || {u['status']=='rented' and u['student_id'] != student_id};
-        document.querySelector(".returnBtn").disabled = !valid || {u['status']=='available' or u['student_id'] != student_id};
-    }}
-    document.getElementById("student_id").addEventListener("input", updateButtons);
-    window.addEventListener("load", updateButtons);
-    </script>
     """
-    return html
-
+    return render_template_string(html, umbrella=umbrella, num=num, student_id=student_id)
 
 # ------------------
 # 관리자 페이지
 # ------------------
 @app.route("/admin", methods=["GET", "POST"])
 def admin_page():
-    admin_pass = "0927"  # 원하는 비밀번호
+    admin_pass = "0927"
     input_pass = request.args.get("pass")
     if input_pass != admin_pass:
         return "관리자 인증 필요. URL 뒤에 ?pass=비밀번호 를 붙여주세요."
@@ -174,10 +155,13 @@ def admin_page():
     conn = get_db()
     cur = conn.cursor()
 
-    # 강제 반납
+    # 강제 반납 처리
     force_return_id = request.form.get("force_return_id")
     if force_return_id:
-        cur.execute("UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?", (force_return_id,))
+        cur.execute(
+            "UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?",
+            (force_return_id,)
+        )
         conn.commit()
 
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
@@ -198,7 +182,6 @@ def admin_page():
     </form>
     """
     return render_template_string(html, umbrellas=umbrellas)
-
 
 # ------------------
 if __name__ == "__main__":
