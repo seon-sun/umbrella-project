@@ -12,7 +12,7 @@ def get_db():
     return conn
 
 # ------------------
-# 전체 우산 페이지 (사용자)
+# 전체 우산 페이지 (대여자)
 # ------------------
 @app.route("/u/all", methods=["GET", "POST"])
 def all_umbrellas():
@@ -23,15 +23,13 @@ def all_umbrellas():
     rent_id = request.form.get("rent_id")
     return_id = request.form.get("return_id")
 
-    # 학생이 몇 개 빌렸는지 확인
-    cur.execute("SELECT COUNT(*) AS cnt FROM umbrellas WHERE student_id=?", (student_id,))
-    rented_count = cur.fetchone()["cnt"]
-
     # 대여 처리
     if rent_id and student_id:
         cur.execute("SELECT status FROM umbrellas WHERE id=?", (rent_id,))
         umbrella = cur.fetchone()
         if umbrella["status"] == "available":
+            cur.execute("SELECT COUNT(*) AS cnt FROM umbrellas WHERE student_id=?", (student_id,))
+            rented_count = cur.fetchone()["cnt"]
             if rented_count < 2:
                 cur.execute(
                     "UPDATE umbrellas SET status='rented', student_id=? WHERE id=?",
@@ -40,7 +38,6 @@ def all_umbrellas():
                 conn.commit()
             else:
                 return f"⚠️ {student_id} 학번은 최대 2개까지 대여 가능합니다.", 400
-        return redirect("/u/all")
 
     # 반납 처리 (본인만 가능)
     elif return_id and student_id:
@@ -52,36 +49,34 @@ def all_umbrellas():
                 (return_id,)
             )
             conn.commit()
-        return redirect("/u/all")
 
     # 전체 우산 상태 조회
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
     umbrellas = cur.fetchall()
 
-    # HTML 템플릿 (모바일/웹 대응)
+    # 모바일 대응 HTML
     html = """
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <h1>전체 우산 대여 페이지</h1>
-    <form method="POST">
-        <input type="text" name="student_id" placeholder="학번 입력" required value="{{ student_id }}">
-        <br><br>
-        {% for u in umbrellas %}
-            <div style="margin-bottom:10px; font-size:16px;">
-                <strong>{{ u.id }}번 우산:</strong>
-                {% if u.status == 'available' %}
-                    🟢 사용 가능
-                    {% if student_id != "" %}
-                        <button type="submit" name="rent_id" value="{{ u.id }}">대여하기</button>
+    <div style="padding:10px; font-size:18px;">
+        <h1>전체 우산 대여 페이지</h1>
+        <form method="POST" style="display:flex; flex-direction:column; gap:10px;">
+            <input type="text" name="student_id" placeholder="학번 입력" required value="{{ student_id }}" style="padding:10px; font-size:16px;">
+            {% for u in umbrellas %}
+                <div style="margin-bottom:10px;">
+                    <strong>{{ u.id }}번 우산:</strong>
+                    {% if u.status == 'available' %}
+                        🟢 사용 가능
+                        <button type="submit" name="rent_id" value="{{ u.id }}" style="padding:8px; font-size:14px;">대여하기</button>
+                    {% else %}
+                        🔴 대여 중
+                        {% if u.student_id == student_id %}
+                            <button type="submit" name="return_id" value="{{ u.id }}" style="padding:8px; font-size:14px;">반납하기</button>
+                        {% endif %}
                     {% endif %}
-                {% else %}
-                    🔴 대여 중
-                    {% if u.student_id == student_id %}
-                        <button type="submit" name="return_id" value="{{ u.id }}">반납하기</button>
-                    {% endif %}
-                {% endif %}
-            </div>
-        {% endfor %}
-    </form>
+                </div>
+            {% endfor %}
+        </form>
+    </div>
     """
     return render_template_string(html, umbrellas=umbrellas, student_id=student_id)
 
@@ -90,7 +85,7 @@ def all_umbrellas():
 # ------------------
 @app.route("/admin", methods=["GET", "POST"])
 def admin_page():
-    admin_pass = "1234"  # 원하는 비밀번호
+    admin_pass = "0927"  # 원하는 비밀번호
     input_pass = request.args.get("pass")
     if input_pass != admin_pass:
         return "관리자 인증 필요. URL 뒤에 ?pass=비밀번호 를 붙여주세요."
@@ -107,28 +102,30 @@ def admin_page():
         )
         conn.commit()
 
-    # 모든 우산 조회
+    # 전체 우산 조회
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
     umbrellas = cur.fetchall()
 
     html = """
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <h1>관리자 페이지</h1>
-    <form method="POST">
-        {% for u in umbrellas %}
-            <div style="margin-bottom:10px; font-size:16px;">
-                <strong>{{ u.id }}번 우산</strong> - {{ u.status }} - 학번: {{ u.student_id }}
-                {% if u.status == 'rented' %}
-                    <button type="submit" name="force_return_id" value="{{ u.id }}">강제 반납</button>
-                {% endif %}
-            </div>
-        {% endfor %}
-    </form>
+    <div style="padding:10px; font-size:18px;">
+        <h1>관리자 페이지</h1>
+        <form method="POST">
+            {% for u in umbrellas %}
+                <div style="margin-bottom:10px;">
+                    <strong>{{ u.id }}번 우산</strong> - {{ u.status }} - 학번: {{ u.student_id }}
+                    {% if u.status == 'rented' %}
+                        <button type="submit" name="force_return_id" value="{{ u.id }}" style="padding:6px; font-size:14px;">강제 반납</button>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </form>
+    </div>
     """
     return render_template_string(html, umbrellas=umbrellas)
 
 # ------------------
-# 개별 우산 페이지
+# 개별 우산 페이지 (모바일 대응)
 # ------------------
 @app.route("/u/<int:num>", methods=["GET", "POST"])
 def umbrella(num):
@@ -141,9 +138,7 @@ def umbrella(num):
         umbrella = cur.fetchone()
 
         if umbrella["status"] == "available":
-            cur.execute(
-                "SELECT COUNT(*) AS cnt FROM umbrellas WHERE student_id=?", (student_id,)
-            )
+            cur.execute("SELECT COUNT(*) AS cnt FROM umbrellas WHERE student_id=?", (student_id,))
             rented_count = cur.fetchone()["cnt"]
             if rented_count < 2:
                 cur.execute(
@@ -176,16 +171,16 @@ def umbrella(num):
 
     html = f"""
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <h2>{status_text}</h2>
-    <form method="POST">
-        <input type="text" name="student_id" placeholder="학번 입력" required>
-        <button type="submit">{button_text}</button>
-    </form>
+    <div style="padding:10px; font-size:18px;">
+        <h2>{status_text}</h2>
+        <form method="POST" style="display:flex; flex-direction:column; gap:10px;">
+            <input type="text" name="student_id" placeholder="학번 입력" required style="padding:10px; font-size:16px;">
+            <button type="submit" style="padding:10px; font-size:16px;">{button_text}</button>
+        </form>
+    </div>
     """
     return html
 
 # ------------------
-# 로컬 테스트용
-# ------------------
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=True)
