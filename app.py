@@ -12,14 +12,7 @@ def get_db():
     return conn
 
 # ------------------
-# 루트 리다이렉트
-# ------------------
-@app.route("/")
-def home():
-    return redirect("/u/all")
-
-# ------------------
-# 사용자 페이지 (전체 우산)
+# 사용자 페이지 (대여자)
 # ------------------
 @app.route("/u/all", methods=["GET", "POST"])
 def all_umbrellas():
@@ -30,10 +23,11 @@ def all_umbrellas():
     rent_id = request.form.get("rent_id")
     return_id = request.form.get("return_id")
 
-    # ------------------
-    # 현재 학번이 대여한 우산 수 확인
-    cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
-    rented_count = cur.fetchone()["cnt"]
+    # 현재 학번이 대여 중인 우산 수 확인
+    rented_count = 0
+    if student_id:
+        cur.execute("SELECT COUNT(*) FROM umbrellas WHERE student_id=? AND status='rented'", (student_id,))
+        rented_count = cur.fetchone()[0]
 
     # 대여 처리
     if rent_id and student_id:
@@ -47,7 +41,7 @@ def all_umbrellas():
                 )
                 conn.commit()
             else:
-                return f"학번 {student_id}은 최대 2개까지 대여 가능합니다."
+                return f"한 학번당 최대 2개의 우산만 대여 가능합니다. (현재 대여 중: {rented_count})"
 
     # 반납 처리 (본인만 가능)
     elif return_id and student_id:
@@ -75,10 +69,10 @@ def all_umbrellas():
                 <strong>{{ u.id }}번 우산:</strong>
                 {% if u.status == 'available' %}
                     🟢 사용 가능
-                    {% if rented_count < 2 %}
+                    {% if student_id and rented_count < 2 %}
                         <button type="submit" name="rent_id" value="{{ u.id }}">대여하기</button>
-                    {% else %}
-                        <button type="button" disabled>대여 제한 초과</button>
+                    {% elif student_id %}
+                        <span style="color:red;">이미 2개 대여 중</span>
                     {% endif %}
                 {% else %}
                     🔴 대여 중
@@ -97,11 +91,11 @@ def all_umbrellas():
 # ------------------
 @app.route("/admin", methods=["GET", "POST"])
 def admin_page():
-    # 간단 비밀번호 인증
-    admin_pass = "0927"  # 원하는 비밀번호로 변경 가능
+    # 간단 비밀번호 인증 (예: URL 뒤에 ?pass=0927)
+    admin_pass = "0927"
     input_pass = request.args.get("pass")
     if input_pass != admin_pass:
-        return "관리자 인증 필요. URL 뒤에 ?pass=비밀번호 를 붙여주세요."
+        return "관리자 인증 필요. URL 뒤에 ?pass=0927 를 붙여주세요."
 
     conn = get_db()
     cur = conn.cursor()
@@ -119,7 +113,7 @@ def admin_page():
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
     umbrellas = cur.fetchall()
 
-    # 관리자용 HTML
+    # 관리자 HTML
     html = """
     <h1>관리자 페이지</h1>
     <form method="POST">
@@ -134,6 +128,54 @@ def admin_page():
     </form>
     """
     return render_template_string(html, umbrellas=umbrellas)
+
+# ------------------
+# 기존 개별 우산 페이지 (선택)
+# ------------------
+@app.route("/u/<int:num>", methods=["GET", "POST"])
+def umbrella(num):
+    conn = get_db()
+    cur = conn.cursor()
+
+    if request.method == "POST":
+        student_id = request.form.get("student_id")
+        cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (num,))
+        umbrella = cur.fetchone()
+
+        if umbrella["status"] == "available":
+            cur.execute(
+                "UPDATE umbrellas SET status='rented', student_id=? WHERE id=?",
+                (student_id, num)
+            )
+        else:
+            if umbrella["student_id"] == student_id:
+                cur.execute(
+                    "UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?",
+                    (num,)
+                )
+            else:
+                return "이 우산을 빌린 학번만 반납할 수 있습니다."
+
+        conn.commit()
+        return redirect(f"/u/{num}")
+
+    cur.execute("SELECT * FROM umbrellas WHERE id=?", (num,))
+    umbrella = cur.fetchone()
+
+    if umbrella["status"] == "available":
+        status_text = f"{num}번 우산 🟢 사용 가능"
+        button_text = "대여하기"
+    else:
+        status_text = f"{num}번 우산 🔴 대여 중 (학번: {umbrella['student_id']})"
+        button_text = "반납하기"
+
+    return f"""
+        <h2>{status_text}</h2>
+        <form method="POST">
+            <input type="text" name="student_id" placeholder="학번 입력" required>
+            <button type="submit">{button_text}</button>
+        </form>
+    """
 
 # ------------------
 if __name__ == "__main__":
