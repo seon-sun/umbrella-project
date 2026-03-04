@@ -12,7 +12,7 @@ def get_db():
     return conn
 
 # ------------------
-# 사용자 페이지 (대여자)
+# 사용자 페이지 (전체 우산)
 # ------------------
 @app.route("/u/all", methods=["GET", "POST"])
 def all_umbrellas():
@@ -78,11 +78,10 @@ def all_umbrellas():
 # ------------------
 @app.route("/admin", methods=["GET", "POST"])
 def admin_page():
-    # 간단 비밀번호 인증 (예: query param ?pass=1234)
-    admin_pass = "1234"
+    admin_pass = "0927"  # 관리자 비밀번호
     input_pass = request.args.get("pass")
     if input_pass != admin_pass:
-        return "관리자 인증 필요. URL 뒤에 ?pass=1234 를 붙여주세요."
+        return "관리자 인증 필요. URL 뒤에 ?pass=비밀번호 를 붙여주세요."
 
     conn = get_db()
     cur = conn.cursor()
@@ -100,6 +99,7 @@ def admin_page():
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
     umbrellas = cur.fetchall()
 
+    # 관리자 HTML
     html = """
     <h1>관리자 페이지</h1>
     <form method="POST">
@@ -116,7 +116,7 @@ def admin_page():
     return render_template_string(html, umbrellas=umbrellas)
 
 # ------------------
-# 기존 우산 개별 페이지 (선택 사항)
+# 기존 개별 우산 페이지 (선택 사항)
 # ------------------
 @app.route("/u/<int:num>", methods=["GET", "POST"])
 def umbrella(num):
