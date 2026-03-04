@@ -12,7 +12,7 @@ def get_db():
     return conn
 
 # ------------------
-# 전체 우산 페이지 (대여자)
+# 사용자 전체 페이지 (대여자)
 # ------------------
 @app.route("/u/all", methods=["GET", "POST"])
 def all_umbrellas():
@@ -23,7 +23,7 @@ def all_umbrellas():
     rent_id = request.form.get("rent_id")
     return_id = request.form.get("return_id")
 
-    # 대여 처리
+    # 대여 처리 (2개 제한)
     if rent_id and student_id:
         cur.execute("SELECT status FROM umbrellas WHERE id=?", (rent_id,))
         umbrella = cur.fetchone()
@@ -38,7 +38,6 @@ def all_umbrellas():
                 conn.commit()
             else:
                 return f"⚠️ {student_id} 학번은 최대 2개까지 대여 가능합니다.", 400
-
     # 반납 처리 (본인만 가능)
     elif return_id and student_id:
         cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (return_id,))
@@ -54,7 +53,6 @@ def all_umbrellas():
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
     umbrellas = cur.fetchall()
 
-    # 모바일 대응 HTML
     html = """
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <div style="padding:10px; font-size:18px;">
@@ -66,11 +64,11 @@ def all_umbrellas():
                     <strong>{{ u.id }}번 우산:</strong>
                     {% if u.status == 'available' %}
                         🟢 사용 가능
-                        <button type="submit" name="rent_id" value="{{ u.id }}" style="padding:8px; font-size:14px;">대여하기</button>
+                        <button type="submit" name="rent_id" value="{{ u.id }}" style="padding:6px 12px;">대여하기</button>
                     {% else %}
                         🔴 대여 중
                         {% if u.student_id == student_id %}
-                            <button type="submit" name="return_id" value="{{ u.id }}" style="padding:8px; font-size:14px;">반납하기</button>
+                            <button type="submit" name="return_id" value="{{ u.id }}" style="padding:6px 12px;">반납하기</button>
                         {% endif %}
                     {% endif %}
                 </div>
@@ -110,12 +108,12 @@ def admin_page():
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <div style="padding:10px; font-size:18px;">
         <h1>관리자 페이지</h1>
-        <form method="POST">
+        <form method="POST" style="display:flex; flex-direction:column; gap:10px;">
             {% for u in umbrellas %}
                 <div style="margin-bottom:10px;">
                     <strong>{{ u.id }}번 우산</strong> - {{ u.status }} - 학번: {{ u.student_id }}
                     {% if u.status == 'rented' %}
-                        <button type="submit" name="force_return_id" value="{{ u.id }}" style="padding:6px; font-size:14px;">강제 반납</button>
+                        <button type="submit" name="force_return_id" value="{{ u.id }}" style="padding:6px 12px;">강제 반납</button>
                     {% endif %}
                 </div>
             {% endfor %}
@@ -169,17 +167,17 @@ def umbrella(num):
         status_text = f"{num}번 우산 🔴 대여 중"
         button_text = "반납하기"
 
-    html = f"""
+    html = """
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <div style="padding:10px; font-size:18px;">
-        <h2>{status_text}</h2>
+        <h2>{{ status_text }}</h2>
         <form method="POST" style="display:flex; flex-direction:column; gap:10px;">
             <input type="text" name="student_id" placeholder="학번 입력" required style="padding:10px; font-size:16px;">
-            <button type="submit" style="padding:10px; font-size:16px;">{button_text}</button>
+            <button type="submit" style="padding:10px; font-size:16px;">{{ button_text }}</button>
         </form>
     </div>
     """
-    return html
+    return render_template_string(html, status_text=status_text, button_text=button_text)
 
 # ------------------
 if __name__ == "__main__":
