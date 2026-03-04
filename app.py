@@ -33,6 +33,7 @@ def all_umbrellas():
     cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
     rented_count = cur.fetchone()["cnt"] if valid_student_id(student_id) else 0
 
+    # 대여 처리
     if rent_id and valid_student_id(student_id):
         cur.execute("SELECT status FROM umbrellas WHERE id=?", (rent_id,))
         umbrella = cur.fetchone()
@@ -45,6 +46,7 @@ def all_umbrellas():
                 message = f"{rent_id}번 우산 대여 완료"
         else:
             message = "이미 대여 중인 우산입니다."
+    # 반납 처리
     elif return_id and valid_student_id(student_id):
         cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (return_id,))
         umbrella = cur.fetchone()
@@ -60,18 +62,6 @@ def all_umbrellas():
 
     html_all = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <script>
-    document.addEventListener("DOMContentLoaded", function(){
-        function applyMobileClass(){
-            if(/Mobi|Android/i.test(navigator.userAgent)){
-                document.body.classList.add('mobile');
-            }
-        }
-        applyMobileClass();
-        window.addEventListener('resize', applyMobileClass);
-    });
-    </script>
 
     <style>
     body { font-family: Arial, sans-serif; }
@@ -110,23 +100,43 @@ def all_umbrellas():
     </form>
 
     <script>
-    const studentInput = document.getElementById("student_id");
-    const rentBtns = document.querySelectorAll(".rentBtn");
-    const returnBtns = document.querySelectorAll(".returnBtn");
+    document.addEventListener("DOMContentLoaded", function(){
+        // 모바일 class 적용
+        function applyMobileClass(){
+            if(/Mobi|Android/i.test(navigator.userAgent)){
+                document.body.classList.add('mobile');
+            }
+        }
+        applyMobileClass();
+        window.addEventListener('resize', applyMobileClass);
 
-    function validateStudentID(sid){
-        return /^\\d{4}304\\d{3}$/.test(sid);
-    }
+        // 버튼 활성화
+        const studentInput = document.getElementById("student_id");
+        const rentBtns = document.querySelectorAll(".rentBtn");
+        const returnBtns = document.querySelectorAll(".returnBtn");
 
-    function updateButtons(){
-        const sid = studentInput.value;
-        const valid = validateStudentID(sid);
-        rentBtns.forEach(b => b.disabled = !valid);
-        returnBtns.forEach(b => b.disabled = !valid);
-    }
+        function validateStudentID(sid){
+            return /^\\d{4}304\\d{3}$/.test(sid);
+        }
 
-    studentInput.addEventListener("input", updateButtons);
-    window.addEventListener("load", updateButtons);
+        function updateButtons(){
+            const sid = studentInput.value;
+            const valid = validateStudentID(sid);
+            rentBtns.forEach(b => b.disabled = !valid);
+            returnBtns.forEach(b => b.disabled = !valid);
+        }
+
+        studentInput.addEventListener("input", updateButtons);
+        updateButtons();
+
+        // 엔터키 자동 submit 방지
+        const form = document.getElementById('umbrellaForm');
+        form.addEventListener('keypress', function(e){
+            if(e.key === 'Enter'){
+                e.preventDefault();
+            }
+        });
+    });
     </script>
     """
 
@@ -164,18 +174,6 @@ def umbrella(num):
     html_single = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <script>
-    document.addEventListener("DOMContentLoaded", function(){
-        function applyMobileClass(){
-            if(/Mobi|Android/i.test(navigator.userAgent)){
-                document.body.classList.add('mobile');
-            }
-        }
-        applyMobileClass();
-        window.addEventListener('resize', applyMobileClass);
-    });
-    </script>
-
     <style>
     body { font-family: Arial, sans-serif; }
     @media (max-width: 768px) {
@@ -200,20 +198,39 @@ def umbrella(num):
     </form>
 
     <script>
-    const studentInput = document.getElementById("student_id");
-    const actionBtn = document.getElementById("actionBtn");
+    document.addEventListener("DOMContentLoaded", function(){
+        // 모바일 class 적용
+        function applyMobileClass(){
+            if(/Mobi|Android/i.test(navigator.userAgent)){
+                document.body.classList.add('mobile');
+            }
+        }
+        applyMobileClass();
+        window.addEventListener('resize', applyMobileClass);
 
-    function validateStudentID(sid){
-        return /^\\d{4}304\\d{3}$/.test(sid);
-    }
+        const studentInput = document.getElementById("student_id");
+        const actionBtn = document.getElementById("actionBtn");
 
-    function updateButton(){
-        const sid = studentInput.value;
-        if(actionBtn) actionBtn.disabled = !validateStudentID(sid);
-    }
+        function validateStudentID(sid){
+            return /^\\d{4}304\\d{3}$/.test(sid);
+        }
 
-    studentInput.addEventListener("input", updateButton);
-    window.addEventListener("load", updateButton);
+        function updateButton(){
+            const sid = studentInput.value;
+            if(actionBtn) actionBtn.disabled = !validateStudentID(sid);
+        }
+
+        studentInput.addEventListener("input", updateButton);
+        updateButton();
+
+        // 엔터키 자동 submit 방지
+        const form = document.getElementById('umbrellaForm');
+        form.addEventListener('keypress', function(e){
+            if(e.key === 'Enter'){
+                e.preventDefault();
+            }
+        });
+    });
     </script>
     """
 
