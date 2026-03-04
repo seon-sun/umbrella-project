@@ -19,7 +19,7 @@ def valid_student_id(sid):
     return bool(re.fullmatch(r"\d{4}304\d{3}", sid))  # YYYY304XXX 형태
 
 # ------------------
-# 전체 페이지
+# 전체 우산 페이지
 # ------------------
 @app.route("/u/all", methods=["GET", "POST"])
 def all_umbrellas():
@@ -48,7 +48,7 @@ def all_umbrellas():
         else:
             message = "이미 대여 중인 우산입니다."
 
-    # 반납 처리 (본인만)
+    # 반납 처리
     elif return_id and valid_student_id(student_id):
         cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (return_id,))
         umbrella = cur.fetchone()
@@ -63,8 +63,20 @@ def all_umbrellas():
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
     umbrellas = cur.fetchall()
 
-    html = """
+    html_all = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- 모바일 즉시 대응 JS -->
+    <script>
+    (function(){
+        if (/Mobi|Android/i.test(navigator.userAgent)) {
+            document.body.classList.add('mobile');
+            document.body.style.display='none';
+            document.body.offsetHeight;
+            document.body.style.display='';
+        }
+    })();
+    </script>
 
     <!-- 모바일 대응 CSS -->
     <style>
@@ -78,7 +90,6 @@ def all_umbrellas():
         input { width: 100%; font-size: 16px; }
     }
 
-    /* QR/모바일 대응용 */
     body.mobile { font-size: 16px; }
     body.mobile button { width: 100%; font-size: 18px; }
     body.mobile input { width: 100%; font-size: 16px; }
@@ -106,13 +117,6 @@ def all_umbrellas():
         {% endfor %}
     </form>
 
-    <!-- 모바일 감지 JS -->
-    <script>
-    if (/Mobi|Android/i.test(navigator.userAgent)) {
-        document.body.classList.add('mobile');
-    }
-    </script>
-
     <!-- 학번 유효성 체크 및 버튼 활성화 -->
     <script>
     const studentInput = document.getElementById("student_id");
@@ -134,7 +138,8 @@ def all_umbrellas():
     window.addEventListener("load", updateButtons);
     </script>
     """
-    return render_template_string(html, umbrellas=umbrellas, student_id=student_id, message=message)
+
+    return render_template_string(html_all, umbrellas=umbrellas, student_id=student_id, message=message)
 
 # ------------------
 # 개별 우산 페이지
@@ -165,17 +170,31 @@ def umbrella(num):
     cur.execute("SELECT * FROM umbrellas WHERE id=?", (num,))
     u = cur.fetchone()
 
-    html = """
+    html_single = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- 모바일 즉시 대응 JS -->
+    <script>
+    (function(){
+        if (/Mobi|Android/i.test(navigator.userAgent)) {
+            document.body.classList.add('mobile');
+            document.body.style.display='none';
+            document.body.offsetHeight;
+            document.body.style.display='';
+        }
+    })();
+    </script>
 
     <!-- 모바일 대응 CSS -->
     <style>
     body { font-family: Arial, sans-serif; }
+
     @media (max-width: 768px) {
         body { font-size: 16px; }
         button { width: 100%; font-size: 18px; }
         input { width: 100%; font-size: 16px; }
     }
+
     body.mobile { font-size: 16px; }
     body.mobile button { width: 100%; font-size: 18px; }
     body.mobile input { width: 100%; font-size: 16px; }
@@ -191,13 +210,6 @@ def umbrella(num):
             <button type="submit" id="actionBtn">{% if u.status=='available' %}대여하기{% else %}반납하기{% endif %}</button>
         {% endif %}
     </form>
-
-    <!-- 모바일 감지 JS -->
-    <script>
-    if (/Mobi|Android/i.test(navigator.userAgent)) {
-        document.body.classList.add('mobile');
-    }
-    </script>
 
     <!-- 학번 유효성 체크 및 버튼 활성화 -->
     <script>
@@ -217,7 +229,8 @@ def umbrella(num):
     window.addEventListener("load", updateButton);
     </script>
     """
-    return render_template_string(html, u=u, message=message)
+
+    return render_template_string(html_single, u=u, message=message)
 
 # ------------------
 # 관리자 페이지
@@ -239,7 +252,7 @@ def admin_page():
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
     umbrellas = cur.fetchall()
 
-    html = """
+    html_admin = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <h1>관리자 페이지</h1>
     <form method="POST">
@@ -253,7 +266,7 @@ def admin_page():
         {% endfor %}
     </form>
     """
-    return render_template_string(html, umbrellas=umbrellas)
+    return render_template_string(html_admin, umbrellas=umbrellas)
 
 # ------------------
 if __name__ == "__main__":
