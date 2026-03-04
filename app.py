@@ -12,7 +12,7 @@ def get_db():
     return conn
 
 # ------------------
-# 학생 대여 수 계산
+# 학생 대여 수 조회
 # ------------------
 def get_student_count(student_id):
     conn = get_db()
@@ -35,14 +35,15 @@ def all_umbrellas():
     if request.method == "POST":
         # 대여 처리
         if rent_id and student_id:
-            cur.execute("SELECT status FROM umbrellas WHERE id=?", (rent_id,))
-            umbrella = cur.fetchone()
-            if umbrella["status"] == "available" and get_student_count(student_id) < 2:
-                cur.execute(
-                    "UPDATE umbrellas SET status='rented', student_id=? WHERE id=?",
-                    (str(student_id), rent_id)
-                )
-                conn.commit()
+            if get_student_count(student_id) < 2:
+                cur.execute("SELECT status FROM umbrellas WHERE id=?", (rent_id,))
+                umbrella = cur.fetchone()
+                if umbrella["status"] == "available":
+                    cur.execute(
+                        "UPDATE umbrellas SET status='rented', student_id=? WHERE id=?",
+                        (str(student_id), rent_id)
+                    )
+                    conn.commit()
 
         # 반납 처리 (본인만)
         if return_id and student_id:
@@ -55,14 +56,13 @@ def all_umbrellas():
                 )
                 conn.commit()
 
-        # POST 후 무한로딩 방지
         return redirect("/u/all")
 
     # 전체 우산 조회
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
     umbrellas = cur.fetchall()
+    student_counts = get_student_count(student_id) if student_id else 0
 
-    # HTML
     html = """
     <!DOCTYPE html>
     <html>
@@ -82,11 +82,15 @@ def all_umbrellas():
                     🟢 사용 가능
                     {% if student_id and student_counts < 2 %}
                         <button type="submit" name="rent_id" value="{{ u.id }}">대여하기</button>
+                    {% else %}
+                        <button type="button" disabled>대여 불가</button>
                     {% endif %}
                 {% else %}
                     🔴 대여 중
                     {% if u.student_id == student_id %}
                         <button type="submit" name="return_id" value="{{ u.id }}">반납하기</button>
+                    {% else %}
+                        <button type="button" disabled>대여 중</button>
                     {% endif %}
                 {% endif %}
             </div>
@@ -95,8 +99,67 @@ def all_umbrellas():
     </body>
     </html>
     """
-    student_counts = get_student_count(student_id) if student_id else 0
     return render_template_string(html, umbrellas=umbrellas, student_id=student_id, student_counts=student_counts)
+
+# ------------------
+# 개별 우산 페이지
+# ------------------
+@app.route("/u/<int:num>", methods=["GET", "POST"])
+def umbrella(num):
+    conn = get_db()
+    cur = conn.cursor()
+    student_id = request.form.get("student_id") or ""
+
+    if request.method == "POST":
+        cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (num,))
+        umbrella = cur.fetchone()
+
+        # 대여
+        if umbrella["status"] == "available" and get_student_count(student_id) < 2:
+            cur.execute(
+                "UPDATE umbrellas SET status='rented', student_id=? WHERE id=?",
+                (str(student_id), num)
+            )
+            conn.commit()
+        # 반납
+        elif umbrella["student_id"] == str(student_id):
+            cur.execute(
+                "UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?",
+                (num,)
+            )
+            conn.commit()
+
+        return redirect(f"/u/{num}")
+
+    # 조회
+    cur.execute("SELECT * FROM umbrellas WHERE id=?", (num,))
+    umbrella = cur.fetchone()
+    can_rent = get_student_count(student_id) < 2 if student_id else True
+    show_return = umbrella["student_id"] == str(student_id) if student_id else False
+
+    status_text = f"{num}번 우산 🟢 사용 가능" if umbrella["status"] == "available" else f"{num}번 우산 🔴 대여 중"
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{{ num }}번 우산</title>
+    </head>
+    <body>
+        <h2>{{ status_text }}</h2>
+        <form method="POST">
+            <input type="text" name="student_id" placeholder="학번 입력" required value="{{ student_id }}">
+            {% if umbrella.status == 'available' and can_rent %}
+                <button type="submit">대여하기</button>
+            {% endif %}
+            {% if show_return %}
+                <button type="submit">반납하기</button>
+            {% endif %}
+        </form>
+    </body>
+    </html>
+    """
+    return render_template_string(html, num=num, status_text=status_text, umbrella=umbrella, student_id=student_id, can_rent=can_rent, show_return=show_return)
 
 # ------------------
 # 관리자 페이지
@@ -146,62 +209,6 @@ def admin_page():
     </html>
     """
     return render_template_string(html, umbrellas=umbrellas)
-
-# ------------------
-# 개별 우산 페이지
-# ------------------
-@app.route("/u/<int:num>", methods=["GET", "POST"])
-def umbrella(num):
-    conn = get_db()
-    cur = conn.cursor()
-    student_id = request.form.get("student_id") or ""
-
-    if request.method == "POST":
-        cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (num,))
-        umbrella = cur.fetchone()
-
-        # 대여
-        if umbrella["status"] == "available" and get_student_count(student_id) < 2:
-            cur.execute(
-                "UPDATE umbrellas SET status='rented', student_id=? WHERE id=?",
-                (str(student_id), num)
-            )
-            conn.commit()
-        # 반납
-        elif umbrella["student_id"] == str(student_id):
-            cur.execute(
-                "UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?",
-                (num,)
-            )
-            conn.commit()
-        return redirect(f"/u/{num}")
-
-    # 조회
-    cur.execute("SELECT * FROM umbrellas WHERE id=?", (num,))
-    umbrella = cur.fetchone()
-
-    can_rent = get_student_count(student_id) < 2 if student_id else True
-    show_return = umbrella["student_id"] == str(student_id) if student_id else False
-
-    status_text = f"{num}번 우산 🟢 사용 가능" if umbrella["status"] == "available" else f"{num}번 우산 🔴 대여 중"
-    html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{num}번 우산</title>
-    </head>
-    <body>
-        <h2>{status_text}</h2>
-        <form method="POST">
-            <input type="text" name="student_id" placeholder="학번 입력" required value="{student_id}">
-            {'<button type="submit">대여하기</button>' if umbrella['status']=='available' and can_rent else ''}
-            {'<button type="submit">반납하기</button>' if show_return else ''}
-        </form>
-    </body>
-    </html>
-    """
-    return html
 
 # ------------------
 if __name__ == "__main__":
