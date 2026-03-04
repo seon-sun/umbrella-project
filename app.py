@@ -65,11 +65,30 @@ def all_umbrellas():
 
     html = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- 모바일 대응 CSS -->
+    <style>
+    body { font-family: Arial, sans-serif; }
+    .container { max-width: 1200px; margin: auto; }
+
+    @media (max-width: 768px) {
+        body { font-size: 16px; }
+        .container { width: 95%; margin: 0 auto; }
+        button { width: 100%; font-size: 18px; }
+        input { width: 100%; font-size: 16px; }
+    }
+
+    /* QR/모바일 대응용 */
+    body.mobile { font-size: 16px; }
+    body.mobile button { width: 100%; font-size: 18px; }
+    body.mobile input { width: 100%; font-size: 16px; }
+    </style>
+
     <h1>전체 우산 대여 페이지</h1>
     <p style="color:red;">{{ message }}</p>
     <form method="POST" id="umbrellaForm">
         <input type="text" name="student_id" id="student_id" placeholder="학번 입력" value="{{ student_id }}">
-        <small>정확한 학번을 입력해주세요 (10자리숫자)</small>
+        <small>정확한 학번을 입력해주세요 (10자리 숫자)</small>
         <br><br>
         {% for u in umbrellas %}
             <div style="margin-bottom:10px;">
@@ -87,13 +106,21 @@ def all_umbrellas():
         {% endfor %}
     </form>
 
+    <!-- 모바일 감지 JS -->
+    <script>
+    if (/Mobi|Android/i.test(navigator.userAgent)) {
+        document.body.classList.add('mobile');
+    }
+    </script>
+
+    <!-- 학번 유효성 체크 및 버튼 활성화 -->
     <script>
     const studentInput = document.getElementById("student_id");
     const rentBtns = document.querySelectorAll(".rentBtn");
     const returnBtns = document.querySelectorAll(".returnBtn");
 
     function validateStudentID(sid){
-        return /^\d{4}304\d{3}$/.test(sid);
+        return /^\\d{4}304\\d{3}$/.test(sid);
     }
 
     function updateButtons(){
@@ -140,23 +167,45 @@ def umbrella(num):
 
     html = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- 모바일 대응 CSS -->
+    <style>
+    body { font-family: Arial, sans-serif; }
+    @media (max-width: 768px) {
+        body { font-size: 16px; }
+        button { width: 100%; font-size: 18px; }
+        input { width: 100%; font-size: 16px; }
+    }
+    body.mobile { font-size: 16px; }
+    body.mobile button { width: 100%; font-size: 18px; }
+    body.mobile input { width: 100%; font-size: 16px; }
+    </style>
+
     <h2>{{ u.id }}번 우산 상태: {{ u.status }}{% if u.status=='rented' %} (학번: {{ u.student_id }}){% endif %}</h2>
     <p style="color:red;">{{ message }}</p>
     <form method="POST" id="umbrellaForm">
         <input type="text" name="student_id" id="student_id" placeholder="학번 입력" value="">
-        <small>정확한 학번을 입력해주세요 (YYYY304XXX)</small>
+        <small>정확한 학번을 입력해주세요 (10자리 숫자)</small>
         <br><br>
         {% if u.status=='available' or u.student_id==request.form.get('student_id') %}
             <button type="submit" id="actionBtn">{% if u.status=='available' %}대여하기{% else %}반납하기{% endif %}</button>
         {% endif %}
     </form>
 
+    <!-- 모바일 감지 JS -->
+    <script>
+    if (/Mobi|Android/i.test(navigator.userAgent)) {
+        document.body.classList.add('mobile');
+    }
+    </script>
+
+    <!-- 학번 유효성 체크 및 버튼 활성화 -->
     <script>
     const studentInput = document.getElementById("student_id");
     const actionBtn = document.getElementById("actionBtn");
 
     function validateStudentID(sid){
-        return /^\d{4}304\d{3}$/.test(sid);
+        return /^\\d{4}304\\d{3}$/.test(sid);
     }
 
     function updateButton(){
