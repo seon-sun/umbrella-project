@@ -16,7 +16,7 @@ def get_db():
 # 학번 유효성
 # ------------------
 def valid_student_id(sid):
-    return bool(re.fullmatch(r"\d{4}304\d{3}", sid))  # YYYY304XXX 형태
+    return bool(re.fullmatch(r"\d{4}304\d{3}", sid))
 
 # ------------------
 # 전체 우산 페이지
@@ -33,7 +33,6 @@ def all_umbrellas():
     cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
     rented_count = cur.fetchone()["cnt"] if valid_student_id(student_id) else 0
 
-    # 대여 처리
     if rent_id and valid_student_id(student_id):
         cur.execute("SELECT status FROM umbrellas WHERE id=?", (rent_id,))
         umbrella = cur.fetchone()
@@ -46,7 +45,6 @@ def all_umbrellas():
                 message = f"{rent_id}번 우산 대여 완료"
         else:
             message = "이미 대여 중인 우산입니다."
-    # 반납 처리
     elif return_id and valid_student_id(student_id):
         cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (return_id,))
         umbrella = cur.fetchone()
@@ -63,34 +61,33 @@ def all_umbrellas():
     html_all = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- 모바일 즉시 대응 JS -->
     <script>
-    function applyMobileClass(){
-        if(/Mobi|Android/i.test(navigator.userAgent)){
-            document.body.classList.add('mobile');
+    document.addEventListener("DOMContentLoaded", function(){
+        function applyMobileClass(){
+            if(/Mobi|Android/i.test(navigator.userAgent)){
+                document.body.classList.add('mobile');
+            }
         }
-    }
-    applyMobileClass();
-    window.addEventListener('resize', applyMobileClass);
+        applyMobileClass();
+        window.addEventListener('resize', applyMobileClass);
+    });
     </script>
 
     <style>
     body { font-family: Arial, sans-serif; }
     .container { max-width: 1200px; margin: auto; }
-
     @media (max-width: 768px) {
         body { font-size: 16px; }
         .container { width: 95%; margin: 0 auto; }
         button { width: 100%; font-size: 18px; }
         input { width: 100%; font-size: 16px; }
     }
-
     body.mobile { font-size: 16px; }
     body.mobile button { width: 100%; font-size: 18px; }
     body.mobile input { width: 100%; font-size: 16px; }
     </style>
 
-    <h1>전체 우산 대여 페이지</h1>
+    <h1>동백 우산 대여 페이지</h1>
     <p style="color:red;">{{ message }}</p>
     <form method="POST" id="umbrellaForm">
         <input type="text" name="student_id" id="student_id" placeholder="학번 입력" value="{{ student_id }}">
@@ -168,24 +165,24 @@ def umbrella(num):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <script>
-    function applyMobileClass(){
-        if(/Mobi|Android/i.test(navigator.userAgent)){
-            document.body.classList.add('mobile');
+    document.addEventListener("DOMContentLoaded", function(){
+        function applyMobileClass(){
+            if(/Mobi|Android/i.test(navigator.userAgent)){
+                document.body.classList.add('mobile');
+            }
         }
-    }
-    applyMobileClass();
-    window.addEventListener('resize', applyMobileClass);
+        applyMobileClass();
+        window.addEventListener('resize', applyMobileClass);
+    });
     </script>
 
     <style>
     body { font-family: Arial, sans-serif; }
-
     @media (max-width: 768px) {
         body { font-size: 16px; }
         button { width: 100%; font-size: 18px; }
         input { width: 100%; font-size: 16px; }
     }
-
     body.mobile { font-size: 16px; }
     body.mobile button { width: 100%; font-size: 18px; }
     body.mobile input { width: 100%; font-size: 16px; }
