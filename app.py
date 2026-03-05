@@ -19,6 +19,13 @@ def valid_student_id(sid):
     return bool(re.fullmatch(r"\d{4}304\d{3}", sid))
 
 # ------------------
+# ✅ UptimeRobot 헬스체크 엔드포인트
+# ------------------
+@app.route("/health")
+def health():
+    return "OK", 200
+
+# ------------------
 # 전체 우산 페이지
 # ------------------
 @app.route("/u/all", methods=["GET", "POST"])
@@ -30,12 +37,12 @@ def all_umbrellas():
     rent_id = request.form.get("rent_id")
     return_id = request.form.get("return_id")
 
-    # 현재 학번 대여 수
-    cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
-    rented_count = cur.fetchone()["cnt"] if valid_student_id(student_id) else 0
-
     # ---------------- 대여 처리 ----------------
     if rent_id and valid_student_id(student_id):
+        # ✅ 대여 처리 직전에 rented_count 계산 (순서 버그 수정)
+        cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
+        rented_count = cur.fetchone()["cnt"]
+
         cur.execute("SELECT status FROM umbrellas WHERE id=?", (rent_id,))
         umbrella = cur.fetchone()
         if umbrella["status"] == "available":
@@ -109,7 +116,7 @@ def all_umbrellas():
 
     <script>
     document.addEventListener("DOMContentLoaded", function(){
-        // 1️⃣ 모바일 UI 즉시 적용
+        // 1️⃣모바일 UI 즉시 적용
         const ua = navigator.userAgent || '';
         const isMobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
         const isNarrow = window.matchMedia("(max-width:768px)").matches;
@@ -164,7 +171,6 @@ def admin_page():
                 "UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?",
                 (force_return_id,)
             )
-        # 강제 반납 후 POST-Redirect-GET 패턴 적용
         return redirect("/admin?pass=0927")
 
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
