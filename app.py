@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template_string
+from flask import Flask, request, render_template_string, redirect
 import sqlite3
 import re
 
@@ -34,7 +34,7 @@ def all_umbrellas():
     cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
     rented_count = cur.fetchone()["cnt"] if valid_student_id(student_id) else 0
 
-    # 대여 처리
+    # ---------------- 대여 처리 ----------------
     if rent_id and valid_student_id(student_id):
         cur.execute("SELECT status FROM umbrellas WHERE id=?", (rent_id,))
         umbrella = cur.fetchone()
@@ -42,26 +42,25 @@ def all_umbrellas():
             if rented_count >= 2:
                 message = "더 이상 대여 불가 (2개 제한)"
             else:
-                # 재대여 시 student_id 항상 문자열로 저장
-                cur.execute(
-                    "UPDATE umbrellas SET status='rented', student_id=? WHERE id=?",
-                    (str(student_id), rent_id)
-                )
-                conn.commit()
+                with conn:
+                    cur.execute(
+                        "UPDATE umbrellas SET status='rented', student_id=? WHERE id=?",
+                        (str(student_id), rent_id)
+                    )
                 message = f"{rent_id}번 우산 대여 완료"
         else:
             message = "이미 대여 중인 우산입니다."
 
-    # 반납 처리
+    # ---------------- 반납 처리 ----------------
     elif return_id and valid_student_id(student_id):
         cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (return_id,))
         umbrella = cur.fetchone()
         if umbrella["student_id"] == student_id:
-            cur.execute(
-                "UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?",
-                (return_id,)
-            )
-            conn.commit()
+            with conn:
+                cur.execute(
+                    "UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?",
+                    (return_id,)
+                )
             message = f"{return_id}번 우산 반납 완료"
         else:
             message = "본인이 대여한 우산만 반납 가능합니다."
@@ -160,11 +159,13 @@ def admin_page():
     cur = conn.cursor()
     force_return_id = request.form.get("force_return_id")
     if force_return_id:
-        cur.execute(
-            "UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?",
-            (force_return_id,)
-        )
-        conn.commit()
+        with conn:
+            cur.execute(
+                "UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?",
+                (force_return_id,)
+            )
+        # 강제 반납 후 POST-Redirect-GET 패턴 적용
+        return redirect("/admin?pass=0927")
 
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
     umbrellas = cur.fetchall()
