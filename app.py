@@ -1,43 +1,22 @@
 from flask import Flask, request, render_template_string, redirect
 import sqlite3
 import re
-import threading
-import time
-import requests
 
 app = Flask(__name__)
 
 # ------------------
-# 전역 DB 연결 (Lazy Loading)
+# DB 연결
 # ------------------
-db_conn = None
 def get_db():
-    global db_conn
-    if db_conn is None:
-        db_conn = sqlite3.connect("umbrellas.db", check_same_thread=False)
-        db_conn.row_factory = sqlite3.Row
-    return db_conn
+    conn = sqlite3.connect("umbrellas.db", check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 # ------------------
 # 학번 유효성
 # ------------------
 def valid_student_id(sid):
     return bool(re.fullmatch(r"\d{4}304\d{3}", sid))
-
-# ------------------
-# 백그라운드 자기 호출 (서버가 살아 있는 동안만 작동)
-# ------------------
-def self_ping():
-    while True:
-        try:
-            requests.get("https://your-app.onrender.com/u/all")
-            print("Self-ping 성공")
-        except:
-            print("서버가 잠자기 상태일 수 있음")
-        time.sleep(5 * 60)  # 5분 간격
-
-# Render 무료 서버에서 첫 요청 이후 실행 가능
-threading.Thread(target=self_ping, daemon=True).start()
 
 # ------------------
 # 전체 우산 페이지
@@ -104,11 +83,9 @@ def all_umbrellas():
     body.mobile { font-size: 16px; }
     body.mobile button { width: 100%; font-size: 18px; }
     body.mobile input { width: 100%; font-size: 16px; }
-    #loading { color:blue; margin-bottom:10px; display:none; }
     </style>
 
     <h1>동백 우산 대여 페이지</h1>
-    <div id="loading">서버 잠자기 상태일 경우, 잠시 기다려주세요...</div>
     <p style="color:red;">{{ message }}</p>
     <form method="POST" id="umbrellaForm">
         <input type="text" name="student_id" id="student_id" placeholder="학번 입력" value="{{ student_id }}">
@@ -132,18 +109,13 @@ def all_umbrellas():
 
     <script>
     document.addEventListener("DOMContentLoaded", function(){
-        // 1️⃣ 로딩 메세지 표시
-        const loading = document.getElementById('loading');
-        loading.style.display = 'block';
-        window.addEventListener('load', ()=>{ loading.style.display = 'none'; });
-
-        // 2️⃣ 모바일 UI 즉시 적용
+        // 1️⃣ 모바일 UI 즉시 적용
         const ua = navigator.userAgent || '';
         const isMobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
         const isNarrow = window.matchMedia("(max-width:768px)").matches;
         if(isMobileUA || isNarrow) document.body.classList.add('mobile');
 
-        // 3️⃣ 버튼 활성화
+        // 2️⃣ 버튼 활성화
         const studentInput = document.getElementById("student_id");
         const rentBtns = document.querySelectorAll(".rentBtn");
         const returnBtns = document.querySelectorAll(".returnBtn");
@@ -163,13 +135,14 @@ def all_umbrellas():
         studentInput.addEventListener("input", updateButtons);
         updateButtons();
 
-        // 4️⃣ 엔터키 submit 방지
+        // 3️⃣ 엔터키 submit 방지
         document.getElementById('umbrellaForm').addEventListener('keypress', e=>{
             if(e.key==='Enter') e.preventDefault();
         });
     });
     </script>
     """
+
     return render_template_string(html_all, umbrellas=umbrellas, student_id=student_id, message=message)
 
 # ------------------
@@ -191,6 +164,7 @@ def admin_page():
                 "UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?",
                 (force_return_id,)
             )
+        # 강제 반납 후 POST-Redirect-GET 패턴 적용
         return redirect("/admin?pass=0927")
 
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
