@@ -99,11 +99,9 @@ def all_umbrellas():
                     <button type="submit" name="rent_id" value="{{ u.id }}" class="rentBtn">대여하기</button>
                 {% else %}
                     🔴 대여 중
-                    {% if u.student_id == student_id %}
-                        <button type="submit" name="return_id" value="{{ u.id }}" class="returnBtn">반납하기</button>
-                    {% else %}
-                        <button type="button" class="returnBtn" disabled>반납하기</button>
-                    {% endif %}
+                    <button type="submit" name="return_id" value="{{ u.id }}" class="returnBtn"
+                            data-owner="{{ u.student_id }}"
+                            {% if u.student_id != student_id %}disabled{% endif %}>반납하기</button>
                 {% endif %}
             </div>
         {% endfor %}
@@ -111,10 +109,7 @@ def all_umbrellas():
 
     <script>
     document.addEventListener("DOMContentLoaded", function(){
-
-        // ---------------------------
         // 모바일 UI 즉시 적용
-        // ---------------------------
         function applyMobileClass(){
             const ua = navigator.userAgent || '';
             const isMobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
@@ -125,42 +120,33 @@ def all_umbrellas():
                 document.body.classList.remove('mobile');
             }
         }
-        setTimeout(applyMobileClass, 50); // QR, 안드로이드 크롬 대응
+        setTimeout(applyMobileClass, 50);  // QR, Android Chrome 대응
         window.addEventListener('resize', applyMobileClass);
 
-        // ---------------------------
-        // 학번 입력 시 버튼 활성화
-        // ---------------------------
         const studentInput = document.getElementById("student_id");
         const rentBtns = document.querySelectorAll(".rentBtn");
         const returnBtns = document.querySelectorAll(".returnBtn");
 
-        function validateStudentID(sid){
-            return /^\d{4}304\d{3}$/.test(sid);
-        }
+        function validateStudentID(sid){ return /^\d{4}304\d{3}$/.test(sid); }
 
         function updateButtons(){
             const sid = studentInput.value;
             const valid = validateStudentID(sid);
             rentBtns.forEach(b => b.disabled = !valid);
             returnBtns.forEach(b=>{
-                if(b.innerText==='반납하기' && !b.disabled){
-                    b.disabled = b.dataset.owner != sid;
-                }
+                const owner = b.dataset.owner || '';
+                b.disabled = (owner !== sid);
             });
         }
 
         studentInput.addEventListener("input", updateButtons);
         updateButtons();
 
-        // ---------------------------
         // 엔터키 submit 방지
-        // ---------------------------
         const form = document.getElementById('umbrellaForm');
         form.addEventListener('keypress', function(e){
             if(e.key === 'Enter'){ e.preventDefault(); }
         });
-
     });
     </script>
     """
