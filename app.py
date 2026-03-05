@@ -30,6 +30,7 @@ def all_umbrellas():
     rent_id = request.form.get("rent_id")
     return_id = request.form.get("return_id")
 
+    # 현재 학번 대여 수
     cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
     rented_count = cur.fetchone()["cnt"] if valid_student_id(student_id) else 0
 
@@ -57,12 +58,16 @@ def all_umbrellas():
         else:
             message = "본인이 대여한 우산만 반납 가능합니다."
 
+    # 전체 우산 조회
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
     umbrellas = cur.fetchall()
 
+    # 서버에서 JS로 전달할 데이터
+    # {우산ID: 학번} 형태
+    umbrella_dict = {u["id"]: u["student_id"] for u in umbrellas}
+
     html_all = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <style>
     body { font-family: Arial, sans-serif; }
     .container { max-width: 1200px; margin: auto; }
@@ -93,6 +98,8 @@ def all_umbrellas():
                     🔴 대여 중
                     {% if u.student_id and u.student_id == student_id %}
                         <button type="submit" name="return_id" value="{{ u.id }}" class="returnBtn">반납하기</button>
+                    {% else %}
+                        <button type="submit" name="return_id" value="{{ u.id }}" class="returnBtn" style="display:none;">반납하기</button>
                     {% endif %}
                 {% endif %}
             </div>
@@ -101,35 +108,60 @@ def all_umbrellas():
 
     <script>
     document.addEventListener("DOMContentLoaded", function(){
-        // 모바일 class 적용
+        // ---------------------------
+        // 모바일 UI 즉시 적용
+        // ---------------------------
         function applyMobileClass(){
-            if(/Mobi|Android/i.test(navigator.userAgent)){
+            if(/Mobi|Android/i.test(navigator.userAgent) || window.matchMedia("(max-width:768px)").matches){
                 document.body.classList.add('mobile');
+            } else {
+                document.body.classList.remove('mobile');
             }
         }
         applyMobileClass();
         window.addEventListener('resize', applyMobileClass);
 
+        // ---------------------------
         // 버튼 활성화
+        // ---------------------------
         const studentInput = document.getElementById("student_id");
         const rentBtns = document.querySelectorAll(".rentBtn");
         const returnBtns = document.querySelectorAll(".returnBtn");
 
+        // 서버에서 전달된 우산 대여 정보
+        const umbrellaData = {{ umbrella_dict|tojson }};
+
         function validateStudentID(sid){
-            return /^\\d{4}304\\d{3}$/.test(sid);
+            return /^\d{4}304\d{3}$/.test(sid);
         }
 
         function updateButtons(){
             const sid = studentInput.value;
             const valid = validateStudentID(sid);
+            // 기본 대여 버튼 활성화
             rentBtns.forEach(b => b.disabled = !valid);
-            returnBtns.forEach(b => b.disabled = !valid);
+            // 기본 반납 버튼 활성화: 본인 학번이 빌린 경우
+            returnBtns.forEach(b=>{
+                const uid = b.value;
+                if(umbrellaData[uid] === sid){
+                    b.style.display = 'inline';
+                    b.disabled = false;
+                } else if(umbrellaData[uid]){
+                    // 다른 학번이 빌린 경우 숨김
+                    b.style.display = 'none';
+                } else {
+                    b.style.display = 'inline';
+                    b.disabled = !valid;
+                }
+            });
         }
 
         studentInput.addEventListener("input", updateButtons);
         updateButtons();
 
+        // ---------------------------
         // 엔터키 자동 submit 방지
+        // ---------------------------
         const form = document.getElementById('umbrellaForm');
         form.addEventListener('keypress', function(e){
             if(e.key === 'Enter'){
@@ -140,7 +172,7 @@ def all_umbrellas():
     </script>
     """
 
-    return render_template_string(html_all, umbrellas=umbrellas, student_id=student_id, message=message)
+    return render_template_string(html_all, umbrellas=umbrellas, student_id=student_id, message=message, umbrella_dict=umbrella_dict)
 
 # ------------------
 # 개별 우산 페이지
@@ -173,7 +205,6 @@ def umbrella(num):
 
     html_single = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <style>
     body { font-family: Arial, sans-serif; }
     @media (max-width: 768px) {
@@ -199,10 +230,11 @@ def umbrella(num):
 
     <script>
     document.addEventListener("DOMContentLoaded", function(){
-        // 모바일 class 적용
         function applyMobileClass(){
-            if(/Mobi|Android/i.test(navigator.userAgent)){
+            if(/Mobi|Android/i.test(navigator.userAgent) || window.matchMedia("(max-width:768px)").matches){
                 document.body.classList.add('mobile');
+            } else {
+                document.body.classList.remove('mobile');
             }
         }
         applyMobileClass();
@@ -212,7 +244,7 @@ def umbrella(num):
         const actionBtn = document.getElementById("actionBtn");
 
         function validateStudentID(sid){
-            return /^\\d{4}304\\d{3}$/.test(sid);
+            return /^\d{4}304\d{3}$/.test(sid);
         }
 
         function updateButton(){
@@ -223,7 +255,6 @@ def umbrella(num):
         studentInput.addEventListener("input", updateButton);
         updateButton();
 
-        // 엔터키 자동 submit 방지
         const form = document.getElementById('umbrellaForm');
         form.addEventListener('keypress', function(e){
             if(e.key === 'Enter'){
