@@ -1,7 +1,6 @@
 from flask import Flask, request, render_template_string
 import sqlite3
 import re
-import json
 
 app = Flask(__name__)
 
@@ -100,9 +99,11 @@ def all_umbrellas():
                     <button type="submit" name="rent_id" value="{{ u.id }}" class="rentBtn">대여하기</button>
                 {% else %}
                     🔴 대여 중
-                    <button type="submit" name="return_id" value="{{ u.id }}" class="returnBtn" {% if u.student_id != student_id %}disabled{% endif %}>
-                        반납하기
-                    </button>
+                    {% if u.student_id == student_id %}
+                        <button type="submit" name="return_id" value="{{ u.id }}" class="returnBtn">반납하기</button>
+                    {% else %}
+                        <button type="button" class="returnBtn" disabled>반납하기</button>
+                    {% endif %}
                 {% endif %}
             </div>
         {% endfor %}
@@ -143,16 +144,8 @@ def all_umbrellas():
             const valid = validateStudentID(sid);
             rentBtns.forEach(b => b.disabled = !valid);
             returnBtns.forEach(b=>{
-                if(b.dataset.originalDisabled === undefined) b.dataset.originalDisabled = b.disabled;
-                if(valid && b.value){
-                    // 반납 버튼 활성화 조건
-                    if(b.dataset.originalDisabled === 'false' || b.disabled === false){
-                        b.disabled = false;
-                    } else {
-                        b.disabled = !valid;
-                    }
-                } else {
-                    b.disabled = !valid;
+                if(b.innerText==='반납하기' && !b.disabled){
+                    b.disabled = b.dataset.owner != sid;
                 }
             });
         }
