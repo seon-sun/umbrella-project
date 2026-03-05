@@ -109,20 +109,13 @@ def all_umbrellas():
 
     <script>
     document.addEventListener("DOMContentLoaded", function(){
-        // 모바일 UI 즉시 적용
-        function applyMobileClass(){
-            const ua = navigator.userAgent || '';
-            const isMobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
-            const isNarrowScreen = window.matchMedia("(max-width:768px)").matches;
-            if(isMobileUA || isNarrowScreen){
-                document.body.classList.add('mobile');
-            } else {
-                document.body.classList.remove('mobile');
-            }
-        }
-        setTimeout(applyMobileClass, 50);  // QR, Android Chrome 대응
-        window.addEventListener('resize', applyMobileClass);
+        // 1️⃣ 모바일 UI 즉시 적용
+        const ua = navigator.userAgent || '';
+        const isMobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
+        const isNarrow = window.matchMedia("(max-width:768px)").matches;
+        if(isMobileUA || isNarrow) document.body.classList.add('mobile');
 
+        // 2️⃣ 버튼 활성화
         const studentInput = document.getElementById("student_id");
         const rentBtns = document.querySelectorAll(".rentBtn");
         const returnBtns = document.querySelectorAll(".returnBtn");
@@ -142,10 +135,9 @@ def all_umbrellas():
         studentInput.addEventListener("input", updateButtons);
         updateButtons();
 
-        // 엔터키 submit 방지
-        const form = document.getElementById('umbrellaForm');
-        form.addEventListener('keypress', function(e){
-            if(e.key === 'Enter'){ e.preventDefault(); }
+        // 3️⃣ 엔터키 submit 방지
+        document.getElementById('umbrellaForm').addEventListener('keypress', e=>{
+            if(e.key==='Enter') e.preventDefault();
         });
     });
     </script>
@@ -161,7 +153,7 @@ def admin_page():
     admin_pass = "0927"
     input_pass = request.args.get("pass")
     if input_pass != admin_pass:
-        return "관리자 인증 필요. URL 뒤에 ?pass=비밀번호 를 붙여주세요."
+        return "관리자 인증 필요. URL 뒤에 ?pass=비밀번호를 붙여주세요."
 
     conn = get_db()
     cur = conn.cursor()
