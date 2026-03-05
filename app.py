@@ -42,6 +42,7 @@ def all_umbrellas():
             if rented_count >= 2:
                 message = "더 이상 대여 불가 (2개 제한)"
             else:
+                # 재대여 시 student_id 항상 문자열로 저장
                 cur.execute(
                     "UPDATE umbrellas SET status='rented', student_id=? WHERE id=?",
                     (str(student_id), rent_id)
