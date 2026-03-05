@@ -30,7 +30,6 @@ def all_umbrellas():
     rent_id = request.form.get("rent_id")
     return_id = request.form.get("return_id")
 
-    # 현재 학번 대여 수
     cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
     rented_count = cur.fetchone()["cnt"] if valid_student_id(student_id) else 0
 
@@ -63,7 +62,6 @@ def all_umbrellas():
     umbrellas = cur.fetchall()
 
     # 서버에서 JS로 전달할 데이터
-    # {우산ID: 학번} 형태
     umbrella_dict = {u["id"]: u["student_id"] for u in umbrellas}
 
     html_all = """
@@ -96,11 +94,7 @@ def all_umbrellas():
                     <button type="submit" name="rent_id" value="{{ u.id }}" class="rentBtn">대여하기</button>
                 {% else %}
                     🔴 대여 중
-                    {% if u.student_id and u.student_id == student_id %}
-                        <button type="submit" name="return_id" value="{{ u.id }}" class="returnBtn">반납하기</button>
-                    {% else %}
-                        <button type="submit" name="return_id" value="{{ u.id }}" class="returnBtn" style="display:none;">반납하기</button>
-                    {% endif %}
+                    <button type="submit" name="return_id" value="{{ u.id }}" class="returnBtn">반납하기</button>
                 {% endif %}
             </div>
         {% endfor %}
@@ -112,7 +106,9 @@ def all_umbrellas():
         // 모바일 UI 즉시 적용
         // ---------------------------
         function applyMobileClass(){
-            if(/Mobi|Android/i.test(navigator.userAgent) || window.matchMedia("(max-width:768px)").matches){
+            const isMobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            const isNarrowScreen = window.matchMedia("(max-width:768px)").matches;
+            if(isMobileUA || isNarrowScreen){
                 document.body.classList.add('mobile');
             } else {
                 document.body.classList.remove('mobile');
@@ -127,8 +123,6 @@ def all_umbrellas():
         const studentInput = document.getElementById("student_id");
         const rentBtns = document.querySelectorAll(".rentBtn");
         const returnBtns = document.querySelectorAll(".returnBtn");
-
-        // 서버에서 전달된 우산 대여 정보
         const umbrellaData = {{ umbrella_dict|tojson }};
 
         function validateStudentID(sid){
@@ -138,16 +132,13 @@ def all_umbrellas():
         function updateButtons(){
             const sid = studentInput.value;
             const valid = validateStudentID(sid);
-            // 기본 대여 버튼 활성화
             rentBtns.forEach(b => b.disabled = !valid);
-            // 기본 반납 버튼 활성화: 본인 학번이 빌린 경우
             returnBtns.forEach(b=>{
                 const uid = b.value;
                 if(umbrellaData[uid] === sid){
                     b.style.display = 'inline';
                     b.disabled = false;
                 } else if(umbrellaData[uid]){
-                    // 다른 학번이 빌린 경우 숨김
                     b.style.display = 'none';
                 } else {
                     b.style.display = 'inline';
@@ -160,13 +151,11 @@ def all_umbrellas():
         updateButtons();
 
         // ---------------------------
-        // 엔터키 자동 submit 방지
+        // 엔터키 submit 방지
         // ---------------------------
         const form = document.getElementById('umbrellaForm');
         form.addEventListener('keypress', function(e){
-            if(e.key === 'Enter'){
-                e.preventDefault();
-            }
+            if(e.key === 'Enter'){ e.preventDefault(); }
         });
     });
     </script>
@@ -231,7 +220,9 @@ def umbrella(num):
     <script>
     document.addEventListener("DOMContentLoaded", function(){
         function applyMobileClass(){
-            if(/Mobi|Android/i.test(navigator.userAgent) || window.matchMedia("(max-width:768px)").matches){
+            const isMobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            const isNarrowScreen = window.matchMedia("(max-width:768px)").matches;
+            if(isMobileUA || isNarrowScreen){
                 document.body.classList.add('mobile');
             } else {
                 document.body.classList.remove('mobile');
@@ -257,9 +248,7 @@ def umbrella(num):
 
         const form = document.getElementById('umbrellaForm');
         form.addEventListener('keypress', function(e){
-            if(e.key === 'Enter'){
-                e.preventDefault();
-            }
+            if(e.key === 'Enter'){ e.preventDefault(); }
         });
     });
     </script>
