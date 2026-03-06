@@ -152,7 +152,7 @@ def all_umbrellas():
             <input type="text" name="student_name" id="student_name" placeholder="이름" value="{{ student_name }}">
             <input type="text" name="student_id" id="student_id" placeholder="학번 (10자리)" value="{{ student_id }}">
         </div>
-        <div class="hint">학번 형식: 20XX304XXX</div>
+        <div class="hint">학번 형식: 10자리 숫자</div>
         <div class="umbrella-list">
         {% for u in umbrellas %}
             <div class="umbrella-item">
@@ -190,7 +190,7 @@ def all_umbrellas():
         const isNarrow = window.matchMedia("(max-width:768px)").matches;
         if(isMobileUA || isNarrow) document.body.classList.add('mobile');
 
-        // 2️⃣ 버튼 활성화 (학번 + 이름 세트로 확인)
+        // 2️⃣ 버튼 활성화 (이름 + 학번 세트 취급)
         const studentInput = document.getElementById("student_id");
         const nameInput = document.getElementById("student_name");
         const rentBtns = document.querySelectorAll(".rentBtn");
@@ -233,7 +233,7 @@ def admin_page():
     admin_pass = "0927"
     input_pass = request.args.get("pass")
     if input_pass != admin_pass:
-        return "관리자 인증 필요. URL 뒤에 ?pass=비밀번호를 붙여주세요."
+        return "관리자 인증 필요. URL 뒤에 ?pass=비밀번호 붙여주세요."
 
     broken_id = request.form.get("broken_id")
     recover_id = request.form.get("recover_id")
