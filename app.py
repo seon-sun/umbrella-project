@@ -188,7 +188,7 @@ def all_umbrellas():
         <input type="text" id="student_name" placeholder="이름" value="{{ student_name }}">
         <input type="text" id="student_id" placeholder="학번 (10자리)" value="{{ student_id }}">
     </div>
-    <div class="hint">학번 형식: 10자리 숫자</div>
+    <div class="hint">학번 형식: 20XX304XXX</div>
     <div class="umbrella-list" style="margin-top:16px;">
     {% for u in umbrellas %}
         <div class="umbrella-item" id="item-{{ u.id }}">
@@ -206,7 +206,7 @@ def all_umbrellas():
             {% if u.status == 'available' %}
                 <button class="btn-rent" onclick="doRent({{ u.id }})">대여</button>
             {% elif u.status == 'broken' %}
-                <button class="btn-rent" disabled>분실/고장</button>
+                <button class="btn-rent btn-broken-state" disabled>분실/고장</button>
             {% else %}
                 <button class="btn-return"
                     data-owner-id="{{ u.student_id }}"
@@ -241,7 +241,12 @@ def all_umbrellas():
     function updateButtons() {
         const { sid, name } = getInputs();
         const valid = validateStudentID(sid) && name.length > 0;
-        document.querySelectorAll(".btn-rent:not([disabled])").forEach(b => b.disabled = !valid);
+        // ✅ broken 상태 버튼 제외하고 모든 대여 버튼 활성화/비활성화
+        document.querySelectorAll(".btn-rent").forEach(b => {
+            if (!b.classList.contains("btn-broken-state")) {
+                b.disabled = !valid;
+            }
+        });
         document.querySelectorAll(".btn-return").forEach(b => {
             const ownerId = b.dataset.ownerId || '';
             const ownerName = b.dataset.ownerName || '';
