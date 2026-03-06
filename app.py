@@ -272,7 +272,7 @@ def all_umbrellas():
     nameInput.addEventListener("input", updateButtons);
     updateButtons();
 
-    // ✅ 2초 폴링 - 다른 기기에서 변경된 상태 실시간 반영
+    // ✅ 1초 폴링 - 다른 기기에서 변경된 상태 실시간 반영
     setInterval(async () => {
         try {
             const res = await fetch('/u/status');
@@ -450,7 +450,7 @@ def admin_page():
         }
     }
 
-    // ✅ 2초 폴링 - 관리자 페이지 실시간 동기화
+    // ✅ 1초 폴링 - 관리자 페이지 실시간 동기화
     setInterval(async () => {
         try {
             const res = await fetch('/u/status');
