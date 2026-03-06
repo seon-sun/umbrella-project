@@ -195,7 +195,7 @@ def all_umbrellas():
     </style>
 
     <div class="wrap">
-    <h1>🌂동백 우산 대여</h1>
+    <h1>🌂 동백 우산 대여</h1>
     <div class="subtitle">이름과 학번을 입력 후 대여/반납해주세요</div>
     <p class="msg" id="msgBox">{{ message }}</p>
     <div class="input-row">
@@ -303,7 +303,7 @@ def all_umbrellas():
                 updateButtons();
             });
         } catch(e) {}
-    }, 2000);
+    }, 1000);
 
     async function doRent(id) {
         if (!isValid()) return;
@@ -449,6 +449,37 @@ def admin_page():
             btnsEl.innerHTML = `<button class="btn-broken" onclick="doAction(${id}, 'broken')">분실/고장 처리</button>`;
         }
     }
+
+    // ✅ 2초 폴링 - 관리자 페이지 실시간 동기화
+    setInterval(async () => {
+        try {
+            const res = await fetch('/u/status');
+            const data = await res.json();
+
+            data.umbrellas.forEach(u => {
+                const infoEl = document.getElementById('info-' + u.id);
+                const btnsEl = document.getElementById('btns-' + u.id);
+                const item = document.getElementById('item-' + u.id);
+                if (!infoEl || !btnsEl || !item) return;
+
+                const currentStatus = item.dataset.status;
+                if (currentStatus === u.status) return;
+
+                item.dataset.status = u.status;
+
+                if (u.status === 'rented') {
+                    infoEl.textContent = '🔴 ' + (u.student_name || '') + ' / ' + (u.student_id || '');
+                    btnsEl.innerHTML = `<button class="btn-broken" onclick="doAction(${u.id}, 'broken')">분실/고장 처리</button>`;
+                } else if (u.status === 'broken') {
+                    infoEl.textContent = '🟡 분실/고장';
+                    btnsEl.innerHTML = `<button class="btn-recover" onclick="doAction(${u.id}, 'recover')">복구</button>`;
+                } else if (u.status === 'available') {
+                    infoEl.textContent = '🟢 사용 가능';
+                    btnsEl.innerHTML = `<button class="btn-broken" onclick="doAction(${u.id}, 'broken')">분실/고장 처리</button>`;
+                }
+            });
+        } catch(e) {}
+    }, 1000);
     </script>
     """
     return render_template_string(html_admin, umbrellas=umbrellas)
