@@ -4,6 +4,8 @@ import psycopg2.extras
 import os
 import re
 import requests
+from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import datetime, timezone, timedelta
 
 app = Flask(__name__)
 
@@ -25,8 +27,13 @@ def init_db():
             id INTEGER PRIMARY KEY,
             status TEXT DEFAULT 'available',
             student_id TEXT,
-            student_name TEXT
+            student_name TEXT,
+            rented_at TIMESTAMP
         )
+    """)
+    # 기존 테이블에 rented_at 컬럼 없으면 추가
+    cur.execute("""
+        ALTER TABLE umbrellas ADD COLUMN IF NOT EXISTS rented_at TIMESTAMP
     """)
     cur.execute("SELECT COUNT(*) as cnt FROM umbrellas")
     if cur.fetchone()[0] == 0:
@@ -54,6 +61,40 @@ def send_discord(msg):
         requests.post(url, json={"content": msg}, timeout=3)
     except:
         pass
+
+# ------------------
+# ✅ 연체 알림 스케줄러 (매일 KST 09:30 = UTC 00:30)
+# ------------------
+def check_overdue():
+    kst = timezone(timedelta(hours=9))
+    now = datetime.now(kst)
+    conn = get_db()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT id, student_name, student_id, rented_at
+            FROM umbrellas
+            WHERE status='rented' AND rented_at IS NOT NULL
+        """)
+        rows = cur.fetchall()
+        for row in rows:
+            rented_at = row["rented_at"]
+            if rented_at.tzinfo is None:
+                rented_at = rented_at.replace(tzinfo=timezone.utc)
+            rented_at_kst = rented_at.astimezone(kst)
+            days = (now.date() - rented_at_kst.date()).days
+            if days >= 6:  # 6일째 = 1일 연체
+                overdue_days = days - 5
+                send_discord(
+                    f"⚠️ [연체 {overdue_days}일차] {row['student_name']} / {row['student_id']} → {row['id']}번 우산 "
+                    f"(대여일: {rented_at_kst.strftime('%Y-%m-%d')})"
+                )
+    finally:
+        conn.close()
+
+scheduler = BackgroundScheduler(timezone="Asia/Seoul")
+scheduler.add_job(check_overdue, "cron", hour=9, minute=30)
+scheduler.start()
 
 # ------------------
 # ✅ UptimeRobot 헬스체크 엔드포인트
@@ -105,9 +146,10 @@ def umbrella_action():
             if not umbrella or umbrella["status"] != "available":
                 return {"ok": False, "msg": "이미 대여 중인 우산입니다."}
 
+            now_kst = datetime.now(timezone(timedelta(hours=9)))
             cur.execute(
-                "UPDATE umbrellas SET status='rented', student_id=%s, student_name=%s WHERE id=%s",
-                (student_id, student_name, uid)
+                "UPDATE umbrellas SET status='rented', student_id=%s, student_name=%s, rented_at=%s WHERE id=%s",
+                (student_id, student_name, now_kst, uid)
             )
             conn.commit()
             send_discord(f"🟢 [대여] {student_name} / {student_id} → {uid}번 우산")
@@ -121,7 +163,7 @@ def umbrella_action():
                 return {"ok": False, "msg": "본인이 대여한 우산만 반납 가능합니다."}
 
             cur.execute(
-                "UPDATE umbrellas SET status='available', student_id=NULL, student_name=NULL WHERE id=%s",
+                "UPDATE umbrellas SET status='available', student_id=NULL, student_name=NULL, rented_at=NULL WHERE id=%s",
                 (uid,)
             )
             conn.commit()
@@ -156,7 +198,7 @@ def admin_action():
     try:
         cur = conn.cursor()
         cur.execute(
-            "UPDATE umbrellas SET status=%s, student_id=NULL, student_name=NULL WHERE id=%s",
+            "UPDATE umbrellas SET status=%s, student_id=NULL, student_name=NULL, rented_at=NULL WHERE id=%s",
             (status, uid)
         )
         conn.commit()
