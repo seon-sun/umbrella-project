@@ -182,17 +182,21 @@ def admin_page():
     if input_pass != admin_pass:
         return "관리자 인증 필요. URL 뒤에 ?pass=비밀번호를 붙여주세요."
 
-    conn = get_db()
-    cur = conn.cursor()
     force_return_id = request.form.get("force_return_id")
     if force_return_id:
-        with conn:
-            cur.execute(
+        conn = get_db()
+        try:
+            conn.execute(
                 "UPDATE umbrellas SET status='available', student_id=NULL, student_name=NULL WHERE id=?",
                 (force_return_id,)
             )
+            conn.commit()
+        finally:
+            conn.close()
         return redirect("/admin?pass=0927")
 
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
     umbrellas = cur.fetchall()
 
