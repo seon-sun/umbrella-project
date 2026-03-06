@@ -233,7 +233,6 @@ def admin_page():
     }
     </style>
     <h1>관리자 페이지</h1>
-    <form method="POST" action="/admin?pass=0927">
         {% for u in umbrellas %}
             <div class="umbrella-row">
                 <div class="info">
@@ -245,11 +244,12 @@ def admin_page():
                     {% endif %}
                 </div>
                 {% if u.status == 'rented' %}
-                    <button type="submit" name="force_return_id" value="{{ u.id }}">강제 반납</button>
+                    <form method="POST" action="/admin?pass=0927" style="margin:0;">
+                        <button type="submit" name="force_return_id" value="{{ u.id }}">강제 반납</button>
+                    </form>
                 {% endif %}
             </div>
         {% endfor %}
-    </form>
     """
     return render_template_string(html_admin, umbrellas=umbrellas)
 
