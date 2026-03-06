@@ -319,35 +319,6 @@ def admin_page():
     if input_pass != admin_pass:
         return "관리자 인증 필요. URL 뒤에 ?pass=비밀번호를 붙여주세요."
 
-    broken_id = request.form.get("broken_id")
-    recover_id = request.form.get("recover_id")
-
-    if broken_id:
-        conn = get_db()
-        try:
-            cur = conn.cursor()
-            cur.execute(
-                "UPDATE umbrellas SET status='broken', student_id=NULL, student_name=NULL WHERE id=%s",
-                (broken_id,)
-            )
-            conn.commit()
-        finally:
-            conn.close()
-        return redirect("/admin?pass=0927")
-
-    if recover_id:
-        conn = get_db()
-        try:
-            cur = conn.cursor()
-            cur.execute(
-                "UPDATE umbrellas SET status='available', student_id=NULL, student_name=NULL WHERE id=%s",
-                (recover_id,)
-            )
-            conn.commit()
-        finally:
-            conn.close()
-        return redirect("/admin?pass=0927")
-
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT * FROM umbrellas ORDER BY id")
