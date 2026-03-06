@@ -90,44 +90,68 @@ def all_umbrellas():
     html_all = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-    body { font-family: Arial, sans-serif; }
-    .container { max-width: 1200px; margin: auto; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f6fa; color: #333; }
+    .wrap { max-width: 700px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 32px; }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+    .input-row { display: flex; gap: 10px; margin-bottom: 6px; }
+    .input-row input { flex: 1; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s; }
+    .input-row input:focus { border-color: #4a90e2; }
+    .hint { font-size: 12px; color: #aaa; margin-bottom: 20px; }
+    .msg { font-size: 13px; color: #e74c3c; min-height: 18px; margin-bottom: 16px; }
+    .umbrella-list { display: flex; flex-direction: column; gap: 8px; }
+    .umbrella-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 8px; background: #f9f9f9; border: 1px solid #eee; }
+    .umbrella-item .label { font-size: 14px; font-weight: 500; }
+    .umbrella-item .status { font-size: 13px; color: #888; margin-left: 8px; }
+    .btn-rent { padding: 6px 16px; background: #4a90e2; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
+    .btn-rent:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-return { padding: 6px 16px; background: #fff; color: #e74c3c; border: 1px solid #e74c3c; border-radius: 6px; font-size: 13px; cursor: pointer; }
+    .btn-return:disabled { color: #ccc; border-color: #ccc; cursor: not-allowed; }
+
+    /* 모바일 */
     @media (max-width: 768px) {
-        body { font-size: 16px; }
-        .container { width: 95%; margin: 0 auto; }
-        button { width: 100%; font-size: 18px; }
-        input { width: 100%; font-size: 16px; }
+        .wrap { margin: 0; border-radius: 0; box-shadow: none; padding: 20px; }
+        .input-row { flex-direction: column; gap: 8px; }
+        .input-row input { font-size: 16px; padding: 10px 12px; }
+        .btn-rent, .btn-return { width: 80px; font-size: 14px; padding: 8px 0; }
     }
-    body.mobile { font-size: 16px; }
-    body.mobile button { width: 100%; font-size: 18px; }
-    body.mobile input { width: 100%; font-size: 16px; }
     </style>
 
-    <h1>동백 우산 대여 페이지</h1>
-    <p style="color:red;">{{ message }}</p>
+    <div class="wrap">
+    <h1>🌂 동백 우산 대여</h1>
+    <div class="subtitle">이름과 학번을 입력 후 대여/반납해주세요</div>
+    <p class="msg">{{ message }}</p>
     <form method="POST" id="umbrellaForm">
-        <input type="text" name="student_id" id="student_id" placeholder="학번 입력 (10자리)" value="{{ student_id }}">
-        <br><br>
-        <input type="text" name="student_name" id="student_name" placeholder="이름 입력" value="{{ student_name }}">
-        <br>
-        <small>학번(10자리)과 이름을 모두 입력해주세요</small>
-        <br><br>
+        <div class="input-row">
+            <input type="text" name="student_name" id="student_name" placeholder="이름" value="{{ student_name }}">
+            <input type="text" name="student_id" id="student_id" placeholder="학번 (10자리)" value="{{ student_id }}">
+        </div>
+        <div class="hint">학번 형식: 20XX304XXX</div>
+        <div class="umbrella-list">
         {% for u in umbrellas %}
-            <div style="margin-bottom:10px;">
-                <strong>{{ u.id }}번 우산:</strong>
+            <div class="umbrella-item">
+                <div>
+                    <span class="label">{{ u.id }}번 우산</span>
+                    {% if u.status == 'available' %}
+                        <span class="status">🟢 사용 가능</span>
+                    {% else %}
+                        <span class="status">🔴 대여 중</span>
+                    {% endif %}
+                </div>
                 {% if u.status == 'available' %}
-                    🟢 사용 가능
-                    <button type="submit" name="rent_id" value="{{ u.id }}" class="rentBtn">대여하기</button>
+                    <button type="submit" name="rent_id" value="{{ u.id }}" class="btn-rent rentBtn">대여</button>
                 {% else %}
-                    🔴 대여 중
-                    <button type="submit" name="return_id" value="{{ u.id }}" class="returnBtn"
+                    <button type="submit" name="return_id" value="{{ u.id }}" class="btn-return returnBtn"
                             data-owner-id="{{ u.student_id }}"
                             data-owner-name="{{ u.student_name }}"
-                            {% if u.student_id != student_id or u.student_name != student_name %}disabled{% endif %}>반납하기</button>
+                            {% if u.student_id != student_id or u.student_name != student_name %}disabled{% endif %}>반납</button>
                 {% endif %}
             </div>
         {% endfor %}
+        </div>
     </form>
+    </div>
 
     <script>
     document.addEventListener("DOMContentLoaded", function(){
@@ -173,14 +197,14 @@ def all_umbrellas():
     return render_template_string(html_all, umbrellas=umbrellas, student_id=student_id, student_name=student_name, message=message)
 
 # ------------------
-# 관리자 페이지
+# 관리자페이지
 # ------------------
 @app.route("/admin", methods=["GET", "POST"])
 def admin_page():
     admin_pass = "0927"
     input_pass = request.args.get("pass")
     if input_pass != admin_pass:
-        return "관리자 인증 필요. URL 뒤에 ?pass=비밀번호를 붙여주세요."
+        return "관리자페이지인증. URL 뒤에 ?pass=비밀번호입력."
 
     force_return_id = request.form.get("force_return_id")
     if force_return_id:
@@ -203,53 +227,44 @@ def admin_page():
     html_admin = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-    body { font-family: Arial, sans-serif; padding: 10px; }
-    h1 { font-size: 20px; }
-    .umbrella-row {
-        display: flex;
-        align-items: center;
-        flex-wrap: nowrap;
-        gap: 6px;
-        margin-bottom: 10px;
-        font-size: 14px;
-    }
-    .umbrella-row .info {
-        flex: 1;
-        min-width: 0;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .umbrella-row button {
-        flex-shrink: 0;
-        font-size: 13px;
-        padding: 4px 8px;
-        white-space: nowrap;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f6fa; color: #333; }
+    .wrap { max-width: 700px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 32px; }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 24px; }
+    .umbrella-list { display: flex; flex-direction: column; gap: 8px; }
+    .umbrella-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 8px; background: #f9f9f9; border: 1px solid #eee; }
+    .umbrella-item .label { font-size: 14px; font-weight: 500; }
+    .umbrella-item .info { font-size: 13px; color: #555; margin-left: 8px; }
+    .btn-force { padding: 6px 14px; background: #fff; color: #e74c3c; border: 1px solid #e74c3c; border-radius: 6px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+    .btn-force:hover { background: #e74c3c; color: #fff; }
     @media (max-width: 768px) {
-        body { font-size: 14px; }
-        .umbrella-row { font-size: 13px; }
-        .umbrella-row button { font-size: 12px; padding: 4px 6px; }
+        .wrap { margin: 0; border-radius: 0; box-shadow: none; padding: 20px; }
+        .umbrella-item { font-size: 13px; }
+        .btn-force { font-size: 12px; padding: 5px 10px; }
     }
     </style>
-    <h1>관리자 페이지</h1>
+    <div class="wrap">
+    <h1>🔧 관리자 페이지</h1>
+    <div class="umbrella-list">
         {% for u in umbrellas %}
-            <div class="umbrella-row">
-                <div class="info">
-                    <strong>{{ u.id }}번</strong>
+            <div class="umbrella-item">
+                <div>
+                    <span class="label">{{ u.id }}번 우산</span>
                     {% if u.status == 'rented' %}
-                        🔴 {{ u.student_id or '' }} / {{ u.student_name or '' }}
+                        <span class="info">🔴 {{ u.student_name or '' }} / {{ u.student_id or '' }}</span>
                     {% else %}
-                        🟢 사용 가능
+                        <span class="info">🟢 사용 가능</span>
                     {% endif %}
                 </div>
                 {% if u.status == 'rented' %}
                     <form method="POST" action="/admin?pass=0927" style="margin:0;">
-                        <button type="submit" name="force_return_id" value="{{ u.id }}">강제 반납</button>
+                        <button type="submit" name="force_return_id" value="{{ u.id }}" class="btn-force">강제 반납</button>
                     </form>
                 {% endif %}
             </div>
         {% endfor %}
+    </div>
+    </div>
     """
     return render_template_string(html_admin, umbrellas=umbrellas)
 
