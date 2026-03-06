@@ -3,6 +3,7 @@ import psycopg2
 import psycopg2.extras
 import os
 import re
+import requests
 
 app = Flask(__name__)
 
@@ -41,6 +42,18 @@ init_db()
 # ------------------
 def valid_student_id(sid):
     return bool(re.fullmatch(r"\d{4}304\d{3}", sid))
+
+# ------------------
+# ✅ 디스코드 알림
+# ------------------
+def send_discord(msg):
+    url = os.environ.get("DISCORD_WEBHOOK_URL")
+    if not url:
+        return
+    try:
+        requests.post(url, json={"content": msg}, timeout=3)
+    except:
+        pass
 
 # ------------------
 # ✅ UptimeRobot 헬스체크 엔드포인트
@@ -97,6 +110,7 @@ def umbrella_action():
                 (student_id, student_name, uid)
             )
             conn.commit()
+            send_discord(f"🟢 [대여] {student_name} / {student_id} → {uid}번 우산")
             return {"ok": True, "msg": f"{uid}번 우산 대여 완료", "new_status": "rented",
                     "student_id": student_id, "student_name": student_name}
 
@@ -111,6 +125,7 @@ def umbrella_action():
                 (uid,)
             )
             conn.commit()
+            send_discord(f"🔴 [반납] {student_name} / {student_id} → {uid}번 우산")
             return {"ok": True, "msg": f"{uid}번 우산 반납 완료", "new_status": "available"}
 
         return {"ok": False, "msg": "알 수 없는 action"}, 400
@@ -145,6 +160,10 @@ def admin_action():
             (status, uid)
         )
         conn.commit()
+        if action == "broken":
+            send_discord(f"🟡 [분실/고장] {uid}번 우산")
+        elif action == "recover":
+            send_discord(f"✅ [복구] {uid}번 우산")
     finally:
         conn.close()
 
@@ -272,7 +291,7 @@ def all_umbrellas():
     nameInput.addEventListener("input", updateButtons);
     updateButtons();
 
-    // ✅ 1초 폴링 - 다른 기기에서 변경된 상태 실시간 반영
+    // ✅ 2초 폴링 - 다른 기기에서 변경된 상태 실시간 반영
     setInterval(async () => {
         try {
             const res = await fetch('/u/status');
@@ -450,7 +469,7 @@ def admin_page():
         }
     }
 
-    // ✅ 1초 폴링 - 관리자 페이지 실시간 동기화
+    // ✅ 2초 폴링 - 관리자 페이지 실시간 동기화
     setInterval(async () => {
         try {
             const res = await fetch('/u/status');
