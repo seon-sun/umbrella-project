@@ -50,6 +50,20 @@ def health():
     return "OK", 200
 
 # ------------------
+# ✅ 폴링 엔드포인트 (실시간 동기화)
+# ------------------
+@app.route("/u/status", methods=["GET"])
+def umbrella_status():
+    conn = get_db()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT id, status, student_id, student_name FROM umbrellas ORDER BY id")
+        umbrellas = cur.fetchall()
+        return {"umbrellas": [dict(u) for u in umbrellas]}
+    finally:
+        conn.close()
+
+# ------------------
 # ✅ AJAX 대여/반납 엔드포인트
 # ------------------
 @app.route("/u/action", methods=["POST"])
@@ -195,11 +209,11 @@ def all_umbrellas():
             <div>
                 <span class="label">{{ u.id }}번 우산</span>
                 {% if u.status == 'available' %}
-                    <span class="status" id="status-{{ u.id }}">🟢 사용 가능</span>
+                    <span class="status" id="status-{{ u.id }}" data-status="available">🟢 사용 가능</span>
                 {% elif u.status == 'broken' %}
-                    <span class="status" id="status-{{ u.id }}">🟡 분실/고장</span>
+                    <span class="status" id="status-{{ u.id }}" data-status="broken">🟡 분실/고장</span>
                 {% else %}
-                    <span class="status" id="status-{{ u.id }}">🔴 대여 중</span>
+                    <span class="status" id="status-{{ u.id }}" data-status="rented">🔴 대여 중</span>
                 {% endif %}
             </div>
             <div id="btns-{{ u.id }}">
@@ -257,6 +271,39 @@ def all_umbrellas():
     studentInput.addEventListener("input", updateButtons);
     nameInput.addEventListener("input", updateButtons);
     updateButtons();
+
+    // ✅ 2초 폴링 - 다른 기기에서 변경된 상태 실시간 반영
+    setInterval(async () => {
+        try {
+            const res = await fetch('/u/status');
+            const data = await res.json();
+            const { sid, name } = getInputs();
+
+            data.umbrellas.forEach(u => {
+                const statusEl = document.getElementById('status-' + u.id);
+                const btnsEl = document.getElementById('btns-' + u.id);
+                if (!statusEl || !btnsEl) return;
+
+                const currentStatus = statusEl.dataset.status;
+                if (currentStatus === u.status) return; // 변경 없으면 스킵
+
+                statusEl.dataset.status = u.status;
+
+                if (u.status === 'available') {
+                    statusEl.textContent = '🟢 사용 가능';
+                    btnsEl.innerHTML = `<button class="btn-rent" onclick="doRent(${u.id})">대여</button>`;
+                } else if (u.status === 'broken') {
+                    statusEl.textContent = '🟡 분실/고장';
+                    btnsEl.innerHTML = `<button class="btn-rent btn-broken-state" disabled>분실/고장</button>`;
+                } else if (u.status === 'rented') {
+                    statusEl.textContent = '🔴 대여 중';
+                    const isOwner = u.student_id === sid && u.student_name === name;
+                    btnsEl.innerHTML = `<button class="btn-return" data-owner-id="${u.student_id}" data-owner-name="${u.student_name}" onclick="doReturn(${u.id}, this)" ${isOwner ? '' : 'disabled'}>반납</button>`;
+                }
+                updateButtons();
+            });
+        } catch(e) {}
+    }, 2000);
 
     async function doRent(id) {
         if (!isValid()) return;
