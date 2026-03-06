@@ -34,12 +34,16 @@ def all_umbrellas():
     cur = conn.cursor()
     message = ""
     student_id = request.form.get("student_id") or ""
+    student_name = request.form.get("student_name") or ""  # ✅ 이름 추가
     rent_id = request.form.get("rent_id")
     return_id = request.form.get("return_id")
 
+    # 학번 + 이름 둘 다 유효한지 확인
+    valid = valid_student_id(student_id) and len(student_name.strip()) > 0
+
     # ---------------- 대여 처리 ----------------
-    if rent_id and valid_student_id(student_id):
-        # ✅ 대여 처리 직전에 rented_count 계산 (순서 버그 수정)
+    if rent_id and valid:
+        # 대여 처리 직전에 rented_count 계산
         cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
         rented_count = cur.fetchone()["cnt"]
 
@@ -51,21 +55,21 @@ def all_umbrellas():
             else:
                 with conn:
                     cur.execute(
-                        "UPDATE umbrellas SET status='rented', student_id=? WHERE id=?",
-                        (str(student_id), rent_id)
+                        "UPDATE umbrellas SET status='rented', student_id=?, student_name=? WHERE id=?",
+                        (str(student_id), str(student_name.strip()), rent_id)
                     )
                 message = f"{rent_id}번 우산 대여 완료"
         else:
             message = "이미 대여 중인 우산입니다."
 
     # ---------------- 반납 처리 ----------------
-    elif return_id and valid_student_id(student_id):
+    elif return_id and valid:
         cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (return_id,))
         umbrella = cur.fetchone()
         if umbrella["student_id"] == student_id:
             with conn:
                 cur.execute(
-                    "UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?",
+                    "UPDATE umbrellas SET status='available', student_id=NULL, student_name=NULL WHERE id=?",
                     (return_id,)
                 )
             message = f"{return_id}번 우산 반납 완료"
@@ -95,8 +99,11 @@ def all_umbrellas():
     <h1>동백 우산 대여 페이지</h1>
     <p style="color:red;">{{ message }}</p>
     <form method="POST" id="umbrellaForm">
-        <input type="text" name="student_id" id="student_id" placeholder="학번 입력" value="{{ student_id }}">
-        <small>정확한 학번을 입력해주세요 (10자리 숫자)</small>
+        <input type="text" name="student_id" id="student_id" placeholder="학번 입력 (10자리)" value="{{ student_id }}">
+        <br><br>
+        <input type="text" name="student_name" id="student_name" placeholder="이름 입력" value="{{ student_name }}">
+        <br>
+        <small>학번(10자리)과 이름을 모두 입력해주세요</small>
         <br><br>
         {% for u in umbrellas %}
             <div style="margin-bottom:10px;">
@@ -116,14 +123,15 @@ def all_umbrellas():
 
     <script>
     document.addEventListener("DOMContentLoaded", function(){
-        // 1️⃣모바일 UI 즉시 적용
+        // 1️⃣ 모바일 UI 즉시 적용
         const ua = navigator.userAgent || '';
         const isMobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
         const isNarrow = window.matchMedia("(max-width:768px)").matches;
         if(isMobileUA || isNarrow) document.body.classList.add('mobile');
 
-        // 2️⃣ 버튼 활성화
+        // 2️⃣ 버튼 활성화 (학번 + 이름 둘 다 있어야 활성화)
         const studentInput = document.getElementById("student_id");
+        const nameInput = document.getElementById("student_name");
         const rentBtns = document.querySelectorAll(".rentBtn");
         const returnBtns = document.querySelectorAll(".returnBtn");
 
@@ -131,26 +139,28 @@ def all_umbrellas():
 
         function updateButtons(){
             const sid = studentInput.value;
-            const valid = validateStudentID(sid);
+            const name = nameInput.value.trim();
+            const valid = validateStudentID(sid) && name.length > 0;
             rentBtns.forEach(b => b.disabled = !valid);
-            returnBtns.forEach(b=>{
+            returnBtns.forEach(b => {
                 const owner = b.dataset.owner || '';
-                b.disabled = (owner !== sid);
+                b.disabled = (owner !== sid) || !valid;
             });
         }
 
         studentInput.addEventListener("input", updateButtons);
+        nameInput.addEventListener("input", updateButtons);
         updateButtons();
 
         // 3️⃣ 엔터키 submit 방지
-        document.getElementById('umbrellaForm').addEventListener('keypress', e=>{
-            if(e.key==='Enter') e.preventDefault();
+        document.getElementById('umbrellaForm').addEventListener('keypress', e => {
+            if(e.key === 'Enter') e.preventDefault();
         });
     });
     </script>
     """
 
-    return render_template_string(html_all, umbrellas=umbrellas, student_id=student_id, message=message)
+    return render_template_string(html_all, umbrellas=umbrellas, student_id=student_id, student_name=student_name, message=message)
 
 # ------------------
 # 관리자 페이지
@@ -168,7 +178,7 @@ def admin_page():
     if force_return_id:
         with conn:
             cur.execute(
-                "UPDATE umbrellas SET status='available', student_id=NULL WHERE id=?",
+                "UPDATE umbrellas SET status='available', student_id=NULL, student_name=NULL WHERE id=?",
                 (force_return_id,)
             )
         return redirect("/admin?pass=0927")
@@ -182,7 +192,9 @@ def admin_page():
     <form method="POST">
         {% for u in umbrellas %}
             <div style="margin-bottom:10px;">
-                <strong>{{ u.id }}번 우산</strong> - {{ u.status }} - 학번: {{ u.student_id or '없음' }}
+                <strong>{{ u.id }}번 우산</strong> - {{ u.status }}
+                - 학번: {{ u.student_id or '없음' }}
+                - 이름: {{ u.student_name or '없음' }}
                 {% if u.status == 'rented' %}
                     <button type="submit" name="force_return_id" value="{{ u.id }}">강제 반납</button>
                 {% endif %}
