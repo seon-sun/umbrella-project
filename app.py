@@ -127,7 +127,7 @@ def all_umbrellas():
             <input type="text" name="student_name" id="student_name" placeholder="이름" value="{{ student_name }}">
             <input type="text" name="student_id" id="student_id" placeholder="학번 (10자리)" value="{{ student_id }}">
         </div>
-        <div class="hint">학번 형식: 20XX304XXX</div>
+        <div class="hint">학번 형식: 10자리 숫자</div>
         <div class="umbrella-list">
         {% for u in umbrellas %}
             <div class="umbrella-item">
