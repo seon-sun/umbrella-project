@@ -2,4 +2,3 @@ flask
 gunicorn
 psycopg2-binary
 requests
-apscheduler

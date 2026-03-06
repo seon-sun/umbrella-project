@@ -4,7 +4,6 @@ import psycopg2.extras
 import os
 import re
 import requests
-from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timezone, timedelta
 
 app = Flask(__name__)
@@ -92,15 +91,23 @@ def check_overdue():
     finally:
         conn.close()
 
-scheduler = BackgroundScheduler(timezone="Asia/Seoul")
-scheduler.add_job(check_overdue, "cron", hour=9, minute=30)
-scheduler.start()
+# ------------------
+# ✅ UptimeRobot 헬스체크 엔드포인트 (연체 알림 트리거)
+# ------------------
+_last_overdue_check = None
 
-# ------------------
-# ✅ UptimeRobot 헬스체크 엔드포인트
-# ------------------
 @app.route("/health")
 def health():
+    global _last_overdue_check
+    kst = timezone(timedelta(hours=9))
+    now = datetime.now(kst)
+    # 매일 09:30 KST에 한 번만 실행
+    today_check_time = now.replace(hour=9, minute=30, second=0, microsecond=0)
+    if now >= today_check_time:
+        check_key = now.strftime("%Y-%m-%d")
+        if _last_overdue_check != check_key:
+            _last_overdue_check = check_key
+            check_overdue()
     return "OK", 200
 
 # ------------------
