@@ -34,7 +34,7 @@ def all_umbrellas():
     cur = conn.cursor()
     message = ""
     student_id = request.form.get("student_id") or ""
-    student_name = request.form.get("student_name") or ""  # ✅ 이름 추가
+    student_name = request.form.get("student_name") or ""
     rent_id = request.form.get("rent_id")
     return_id = request.form.get("return_id")
 
@@ -43,8 +43,11 @@ def all_umbrellas():
 
     # ---------------- 대여 처리 ----------------
     if rent_id and valid:
-        # 대여 처리 직전에 rented_count 계산
-        cur.execute("SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=?", (student_id,))
+        # ✅ 학번 + 이름 세트로 대여 수 카운트
+        cur.execute(
+            "SELECT COUNT(*) as cnt FROM umbrellas WHERE student_id=? AND student_name=?",
+            (student_id, student_name.strip())
+        )
         rented_count = cur.fetchone()["cnt"]
 
         cur.execute("SELECT status FROM umbrellas WHERE id=?", (rent_id,))
@@ -64,9 +67,13 @@ def all_umbrellas():
 
     # ---------------- 반납 처리 ----------------
     elif return_id and valid:
-        cur.execute("SELECT status, student_id FROM umbrellas WHERE id=?", (return_id,))
+        # ✅ 학번 + 이름 둘 다 일치해야 반납 가능
+        cur.execute(
+            "SELECT status, student_id, student_name FROM umbrellas WHERE id=?",
+            (return_id,)
+        )
         umbrella = cur.fetchone()
-        if umbrella["student_id"] == student_id:
+        if umbrella["student_id"] == student_id and umbrella["student_name"] == student_name.strip():
             with conn:
                 cur.execute(
                     "UPDATE umbrellas SET status='available', student_id=NULL, student_name=NULL WHERE id=?",
@@ -114,8 +121,9 @@ def all_umbrellas():
                 {% else %}
                     🔴 대여 중
                     <button type="submit" name="return_id" value="{{ u.id }}" class="returnBtn"
-                            data-owner="{{ u.student_id }}"
-                            {% if u.student_id != student_id %}disabled{% endif %}>반납하기</button>
+                            data-owner-id="{{ u.student_id }}"
+                            data-owner-name="{{ u.student_name }}"
+                            {% if u.student_id != student_id or u.student_name != student_name %}disabled{% endif %}>반납하기</button>
                 {% endif %}
             </div>
         {% endfor %}
@@ -129,7 +137,7 @@ def all_umbrellas():
         const isNarrow = window.matchMedia("(max-width:768px)").matches;
         if(isMobileUA || isNarrow) document.body.classList.add('mobile');
 
-        // 2️⃣ 버튼 활성화 (학번 + 이름 둘 다 있어야 활성화)
+        // 2️⃣ 버튼 활성화 (학번 + 이름 세트로 확인)
         const studentInput = document.getElementById("student_id");
         const nameInput = document.getElementById("student_name");
         const rentBtns = document.querySelectorAll(".rentBtn");
@@ -143,8 +151,10 @@ def all_umbrellas():
             const valid = validateStudentID(sid) && name.length > 0;
             rentBtns.forEach(b => b.disabled = !valid);
             returnBtns.forEach(b => {
-                const owner = b.dataset.owner || '';
-                b.disabled = (owner !== sid) || !valid;
+                const ownerId = b.dataset.ownerId || '';
+                const ownerName = b.dataset.ownerName || '';
+                // ✅ 학번 + 이름 둘 다 일치해야 반납 버튼 활성화
+                b.disabled = (ownerId !== sid || ownerName !== name) || !valid;
             });
         }
 
@@ -188,13 +198,48 @@ def admin_page():
 
     html_admin = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+    body { font-family: Arial, sans-serif; padding: 10px; }
+    h1 { font-size: 20px; }
+    .umbrella-row {
+        display: flex;
+        align-items: center;
+        flex-wrap: nowrap;
+        gap: 6px;
+        margin-bottom: 10px;
+        font-size: 14px;
+    }
+    .umbrella-row .info {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .umbrella-row button {
+        flex-shrink: 0;
+        font-size: 13px;
+        padding: 4px 8px;
+        white-space: nowrap;
+    }
+    @media (max-width: 768px) {
+        body { font-size: 14px; }
+        .umbrella-row { font-size: 13px; }
+        .umbrella-row button { font-size: 12px; padding: 4px 6px; }
+    }
+    </style>
     <h1>관리자 페이지</h1>
-    <form method="POST">
+    <form method="POST" action="/admin?pass=0927">
         {% for u in umbrellas %}
-            <div style="margin-bottom:10px;">
-                <strong>{{ u.id }}번 우산</strong> - {{ u.status }}
-                - 학번: {{ u.student_id or '없음' }}
-                - 이름: {{ u.student_name or '없음' }}
+            <div class="umbrella-row">
+                <div class="info">
+                    <strong>{{ u.id }}번</strong>
+                    {% if u.status == 'rented' %}
+                        🔴 {{ u.student_id or '' }} / {{ u.student_name or '' }}
+                    {% else %}
+                        🟢 사용 가능
+                    {% endif %}
+                </div>
                 {% if u.status == 'rented' %}
                     <button type="submit" name="force_return_id" value="{{ u.id }}">강제 반납</button>
                 {% endif %}
