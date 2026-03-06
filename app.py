@@ -188,7 +188,7 @@ def all_umbrellas():
         <input type="text" id="student_name" placeholder="이름" value="{{ student_name }}">
         <input type="text" id="student_id" placeholder="학번 (10자리)" value="{{ student_id }}">
     </div>
-    <div class="hint">학번 형식: 10자리 숫자</div>
+    <div class="hint">학번 형식: 20XX304XXX</div>
     <div class="umbrella-list" style="margin-top:16px;">
     {% for u in umbrellas %}
         <div class="umbrella-item" id="item-{{ u.id }}">
@@ -396,10 +396,10 @@ def admin_page():
 
         if (action === 'broken') {
             infoEl.textContent = '🟡 분실/고장';
-            btnsEl.innerHTML = '<button class="btn-recover" onclick="doAction(' + id + ', \'recover\')">복구</button>';
+            btnsEl.innerHTML = `<button class="btn-recover" onclick="doAction(${id}, 'recover')">복구</button>`;
         } else if (action === 'recover') {
             infoEl.textContent = '🟢 사용 가능';
-            btnsEl.innerHTML = '<button class="btn-broken" onclick="doAction(' + id + ', \'broken\')">분실/고장 처리</button>';
+            btnsEl.innerHTML = `<button class="btn-broken" onclick="doAction(${id}, 'broken')">분실/고장 처리</button>`;
         }
     }
     </script>
