@@ -51,13 +51,11 @@ def valid_student_id(sid):
 def send_discord(msg):
     url = os.environ.get("DISCORD_WEBHOOK_URL")
     if not url:
-        print("[Discord] URL 없음")
         return
     try:
-        res = requests.post(url, json={"content": msg}, timeout=5)
-        print(f"[Discord] {res.status_code}")
-    except Exception as e:
-        print(f"[Discord] 실패: {e}")
+        requests.post(url, json={"content": msg}, timeout=3)
+    except:
+        pass
 
 # ------------------
 # ✅ 연체 알림 스케줄러 (매일 KST 09:30 = UTC 00:30)
@@ -369,7 +367,7 @@ def all_umbrellas():
                 updateButtons();
             });
         } catch(e) {}
-    }, 1000);
+    }, 2000);
 
     async function doRent(id) {
         if (!isValid()) return;
@@ -545,7 +543,7 @@ def admin_page():
                 }
             });
         } catch(e) {}
-    }, 1000);
+    }, 2000);
     </script>
     """
     return render_template_string(html_admin, umbrellas=umbrellas)
