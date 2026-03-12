@@ -30,10 +30,6 @@ def init_db():
             rented_at TIMESTAMP
         )
     """)
-    # 기존 테이블에 rented_at 컬럼 없으면 추가
-    cur.execute("""
-        ALTER TABLE umbrellas ADD COLUMN IF NOT EXISTS rented_at TIMESTAMP
-    """)
     cur.execute("SELECT COUNT(*) as cnt FROM umbrellas")
     if cur.fetchone()[0] == 0:
         for i in range(1, 31):
