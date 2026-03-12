@@ -51,11 +51,13 @@ def valid_student_id(sid):
 def send_discord(msg):
     url = os.environ.get("DISCORD_WEBHOOK_URL")
     if not url:
+        print("[Discord] URL 없음")
         return
     try:
-        requests.post(url, json={"content": msg}, timeout=1)
-    except:
-        pass
+        res = requests.post(url, json={"content": msg}, timeout=5)
+        print(f"[Discord] {res.status_code}")
+    except Exception as e:
+        print(f"[Discord] 실패: {e}")
 
 # ------------------
 # ✅ 연체 알림 스케줄러 (매일 KST 09:30 = UTC 00:30)
