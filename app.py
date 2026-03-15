@@ -49,11 +49,17 @@ def valid_student_id(sid):
 # ✅ 디스코드 알림
 # ------------------
 def send_discord(msg):
-    url = os.environ.get("DISCORD_WEBHOOK_URL")
-    if not url:
+    token = os.environ.get("DISCORD_BOT_TOKEN")
+    channel_id = os.environ.get("DISCORD_CHANNEL_ID")
+    if not token or not channel_id:
         return
     try:
-        requests.post(url, json={"content": msg}, timeout=3)
+        requests.post(
+            f"https://discord.com/api/v10/channels/{channel_id}/messages",
+            headers={"Authorization": f"Bot {token}", "Content-Type": "application/json"},
+            json={"content": msg},
+            timeout=3
+        )
     except:
         pass
 
