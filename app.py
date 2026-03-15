@@ -52,16 +52,18 @@ def send_discord(msg):
     token = os.environ.get("DISCORD_BOT_TOKEN")
     channel_id = os.environ.get("DISCORD_CHANNEL_ID")
     if not token or not channel_id:
+        print("[Discord] 환경변수 없음")
         return
     try:
-        requests.post(
+        res = requests.post(
             f"https://discord.com/api/v10/channels/{channel_id}/messages",
             headers={"Authorization": f"Bot {token}", "Content-Type": "application/json"},
             json={"content": msg},
             timeout=3
         )
-    except:
-        pass
+        print(f"[Discord] {res.status_code} / {res.text}")
+    except Exception as e:
+        print(f"[Discord] 실패: {e}")
 
 # ------------------
 # ✅ 연체 알림 스케줄러 (매일 KST 09:30 = UTC 00:30)
