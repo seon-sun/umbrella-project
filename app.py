@@ -9,6 +9,27 @@ from datetime import datetime, timezone, timedelta
 app = Flask(__name__)
 
 # ------------------
+# 메모리 캐시
+# ------------------
+_umbrella_cache = None
+
+def get_cache():
+    global _umbrella_cache
+    if _umbrella_cache is None:
+        refresh_cache()
+    return _umbrella_cache
+
+def refresh_cache():
+    global _umbrella_cache
+    conn = get_db()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT id, status, student_id, student_name FROM umbrellas ORDER BY id")
+        _umbrella_cache = [dict(u) for u in cur.fetchall()]
+    finally:
+        conn.close()
+
+# ------------------
 # DB 연결
 # ------------------
 def get_db():
@@ -119,14 +140,7 @@ def health():
 # ------------------
 @app.route("/u/status", methods=["GET"])
 def umbrella_status():
-    conn = get_db()
-    try:
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT id, status, student_id, student_name FROM umbrellas ORDER BY id")
-        umbrellas = cur.fetchall()
-        return {"umbrellas": [dict(u) for u in umbrellas]}
-    finally:
-        conn.close()
+    return {"umbrellas": get_cache()}
 
 # ------------------
 # ✅ AJAX 대여/반납 엔드포인트
@@ -163,6 +177,7 @@ def umbrella_action():
                 (student_id, student_name, now_kst, uid)
             )
             conn.commit()
+            refresh_cache()
             send_discord(f"🟢 [대여] {student_name} / {student_id} → {uid}번 우산")
             return {"ok": True, "msg": f"{uid}번 우산 대여 완료", "new_status": "rented",
                     "student_id": student_id, "student_name": student_name}
@@ -178,6 +193,7 @@ def umbrella_action():
                 (uid,)
             )
             conn.commit()
+            refresh_cache()
             send_discord(f"🔴 [반납] {student_name} / {student_id} → {uid}번 우산")
             return {"ok": True, "msg": f"{uid}번 우산 반납 완료", "new_status": "available"}
 
@@ -213,6 +229,7 @@ def admin_action():
             (status, uid)
         )
         conn.commit()
+        refresh_cache()
         if action == "broken":
             send_discord(f"🟡 [분실/고장] {uid}번 우산")
         elif action == "recover":
@@ -375,7 +392,7 @@ def all_umbrellas():
                 updateButtons();
             });
         } catch(e) {}
-    }, 2000);
+    }, 3000);
 
     async function doRent(id) {
         if (!isValid()) return;
@@ -551,7 +568,7 @@ def admin_page():
                 }
             });
         } catch(e) {}
-    }, 2000);
+    }, 3000);
     </script>
     """
     return render_template_string(html_admin, umbrellas=umbrellas)
