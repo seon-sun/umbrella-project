@@ -244,15 +244,10 @@ def admin_action():
 # ------------------
 @app.route("/u/all", methods=["GET"])
 def all_umbrellas():
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     message = ""
     student_id = ""
     student_name = ""
-
-    # 전체 우산 조회
-    cur.execute("SELECT * FROM umbrellas ORDER BY id")
-    umbrellas = cur.fetchall()
+    umbrellas = get_cache()
 
     html_all = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -455,10 +450,7 @@ def admin_page():
     if input_pass != admin_pass:
         return "관리자 인증 필요. URL 뒤에 ?pass=비밀번호를 붙여주세요."
 
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM umbrellas ORDER BY id")
-    umbrellas = cur.fetchall()
+    umbrellas = get_cache()
 
     html_admin = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
