@@ -249,15 +249,20 @@ def all_umbrellas():
     student_name = ""
     umbrellas = get_cache()
 
-    html_all = """
+    html_all = """<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>동백 우산 대여</title>
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Noto Sans KR', sans-serif; background: #f0f4f8; color: #222; font-size: 16px; }
-    .wrap { width: 100%; max-width: 100%; background: #fff; min-height: 100vh; padding: 24px 16px 40px; }
+    html, body { width: 100%; overflow-x: hidden; }
+    body { font-family: 'Noto Sans KR', sans-serif; background: #fff; color: #222; font-size: 16px; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    .wrap { width: 100%; background: #fff; min-height: 100vh; padding: 24px 16px 40px; }
     h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
-    .subtitle { font-size: 14px; color: #888; margin-bottom: 24px; }
+    .subtitle { font-size: 14px; color: #888; margin-bottom: 20px; }
     .input-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
     .input-row input { width: 100%; padding: 14px 16px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 16px; outline: none; transition: border 0.2s; font-family: 'Noto Sans KR', sans-serif; }
     .input-row input:focus { border-color: #4a90e2; }
@@ -267,12 +272,13 @@ def all_umbrellas():
     .umbrella-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-radius: 12px; background: #f8f9fb; border: 1.5px solid #eee; }
     .umbrella-item .label { font-size: 16px; font-weight: 600; }
     .umbrella-item .status { font-size: 14px; color: #888; margin-left: 8px; }
-    .btn-rent { padding: 10px 20px; background: #4a90e2; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; min-width: 72px; font-family: 'Noto Sans KR', sans-serif; }
+    .btn-rent { padding: 12px 20px; background: #4a90e2; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; min-width: 76px; font-family: 'Noto Sans KR', sans-serif; }
     .btn-rent:disabled { background: #c8d6e5; cursor: not-allowed; }
-    .btn-return { padding: 10px 20px; background: #fff; color: #e74c3c; border: 1.5px solid #e74c3c; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; min-width: 72px; font-family: 'Noto Sans KR', sans-serif; }
+    .btn-return { padding: 12px 20px; background: #fff; color: #e74c3c; border: 1.5px solid #e74c3c; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; min-width: 76px; font-family: 'Noto Sans KR', sans-serif; }
     .btn-return:disabled { color: #ccc; border-color: #ddd; cursor: not-allowed; }
     </style>
-
+</head>
+<body>
     <div class="wrap">
     <h1>🌂 동백 우산 대여</h1>
     <div class="subtitle">이름과 학번을 입력 후 대여/반납해주세요</div>
@@ -431,6 +437,8 @@ def all_umbrellas():
         }
     }
     </script>
+</body>
+</html>
     """
 
     return render_template_string(html_all, umbrellas=umbrellas, student_id=student_id, student_name=student_name, message=message)
