@@ -250,32 +250,27 @@ def all_umbrellas():
     umbrellas = get_cache()
 
     html_all = """
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f6fa; color: #333; }
-    .wrap { max-width: 700px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 32px; }
-    h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
-    .subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
-    .input-row { display: flex; gap: 10px; margin-bottom: 6px; }
-    .input-row input { flex: 1; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s; }
+    body { font-family: 'Noto Sans KR', sans-serif; background: #f0f4f8; color: #222; font-size: 16px; }
+    .wrap { max-width: 600px; margin: 0 auto; background: #fff; min-height: 100vh; padding: 28px 20px 40px; }
+    h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+    .subtitle { font-size: 14px; color: #888; margin-bottom: 24px; }
+    .input-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+    .input-row input { width: 100%; padding: 14px 16px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 16px; outline: none; transition: border 0.2s; font-family: 'Noto Sans KR', sans-serif; }
     .input-row input:focus { border-color: #4a90e2; }
-    .hint { font-size: 12px; color: #aaa; margin-bottom: 20px; }
-    .msg { font-size: 13px; color: #e74c3c; min-height: 18px; margin-bottom: 16px; }
-    .umbrella-list { display: flex; flex-direction: column; gap: 8px; }
-    .umbrella-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 8px; background: #f9f9f9; border: 1px solid #eee; }
-    .umbrella-item .label { font-size: 14px; font-weight: 500; }
-    .umbrella-item .status { font-size: 13px; color: #888; margin-left: 8px; }
-    .btn-rent { padding: 6px 16px; background: #4a90e2; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
-    .btn-rent:disabled { background: #ccc; cursor: not-allowed; }
-    .btn-return { padding: 6px 16px; background: #fff; color: #e74c3c; border: 1px solid #e74c3c; border-radius: 6px; font-size: 13px; cursor: pointer; }
-    .btn-return:disabled { color: #ccc; border-color: #ccc; cursor: not-allowed; }
-    @media (max-width: 768px) {
-        .wrap { margin: 0; border-radius: 0; box-shadow: none; padding: 20px; }
-        .input-row { flex-direction: column; gap: 8px; }
-        .input-row input { font-size: 16px; padding: 10px 12px; }
-        .btn-rent, .btn-return { width: 80px; font-size: 14px; padding: 8px 0; }
-    }
+    .hint { font-size: 13px; color: #aaa; margin-bottom: 20px; }
+    .msg { font-size: 14px; color: #e74c3c; min-height: 20px; margin-bottom: 16px; font-weight: 500; }
+    .umbrella-list { display: flex; flex-direction: column; gap: 10px; }
+    .umbrella-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-radius: 12px; background: #f8f9fb; border: 1.5px solid #eee; }
+    .umbrella-item .label { font-size: 16px; font-weight: 600; }
+    .umbrella-item .status { font-size: 14px; color: #888; margin-left: 8px; }
+    .btn-rent { padding: 10px 20px; background: #4a90e2; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; min-width: 72px; font-family: 'Noto Sans KR', sans-serif; }
+    .btn-rent:disabled { background: #c8d6e5; cursor: not-allowed; }
+    .btn-return { padding: 10px 20px; background: #fff; color: #e74c3c; border: 1.5px solid #e74c3c; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; min-width: 72px; font-family: 'Noto Sans KR', sans-serif; }
+    .btn-return:disabled { color: #ccc; border-color: #ddd; cursor: not-allowed; }
     </style>
 
     <div class="wrap">
