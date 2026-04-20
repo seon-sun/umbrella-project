@@ -255,7 +255,7 @@ def all_umbrellas():
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Noto Sans KR', sans-serif; background: #f0f4f8; color: #222; font-size: 16px; }
-    .wrap { max-width: 600px; margin: 0 auto; background: #fff; min-height: 100vh; padding: 28px 20px 40px; }
+    .wrap { width: 100%; max-width: 100%; background: #fff; min-height: 100vh; padding: 24px 16px 40px; }
     h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
     .subtitle { font-size: 14px; color: #888; margin-bottom: 24px; }
     .input-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
