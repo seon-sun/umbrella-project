@@ -258,23 +258,24 @@ def all_umbrellas():
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 18px; }
     html, body { width: 100%; overflow-x: hidden; }
-    body { font-family: 'Noto Sans KR', sans-serif; background: #fff; color: #222; font-size: 16px; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    body { font-family: 'Noto Sans KR', sans-serif; background: #fff; color: #222; -webkit-text-size-adjust: none; text-size-adjust: none; }
     .wrap { width: 100%; background: #fff; min-height: 100vh; padding: 24px 16px 40px; }
-    h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
-    .subtitle { font-size: 14px; color: #888; margin-bottom: 20px; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 6px; }
+    .subtitle { font-size: 0.85rem; color: #888; margin-bottom: 20px; }
     .input-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
-    .input-row input { width: 100%; padding: 14px 16px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 16px; outline: none; transition: border 0.2s; font-family: 'Noto Sans KR', sans-serif; }
+    .input-row input { width: 100%; padding: 14px 16px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 1rem; outline: none; transition: border 0.2s; font-family: 'Noto Sans KR', sans-serif; }
     .input-row input:focus { border-color: #4a90e2; }
-    .hint { font-size: 13px; color: #aaa; margin-bottom: 20px; }
-    .msg { font-size: 14px; color: #e74c3c; min-height: 20px; margin-bottom: 16px; font-weight: 500; }
+    .hint { font-size: 0.78rem; color: #aaa; margin-bottom: 20px; }
+    .msg { font-size: 0.85rem; color: #e74c3c; min-height: 20px; margin-bottom: 16px; font-weight: 500; }
     .umbrella-list { display: flex; flex-direction: column; gap: 10px; }
     .umbrella-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-radius: 12px; background: #f8f9fb; border: 1.5px solid #eee; }
-    .umbrella-item .label { font-size: 16px; font-weight: 600; }
-    .umbrella-item .status { font-size: 14px; color: #888; margin-left: 8px; }
-    .btn-rent { padding: 12px 20px; background: #4a90e2; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; min-width: 76px; font-family: 'Noto Sans KR', sans-serif; }
+    .umbrella-item .label { font-size: 1rem; font-weight: 600; }
+    .umbrella-item .status { font-size: 0.85rem; color: #888; margin-left: 8px; }
+    .btn-rent { padding: 12px 18px; background: #4a90e2; color: #fff; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; min-width: 72px; font-family: 'Noto Sans KR', sans-serif; }
     .btn-rent:disabled { background: #c8d6e5; cursor: not-allowed; }
-    .btn-return { padding: 12px 20px; background: #fff; color: #e74c3c; border: 1.5px solid #e74c3c; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; min-width: 76px; font-family: 'Noto Sans KR', sans-serif; }
+    .btn-return { padding: 12px 18px; background: #fff; color: #e74c3c; border: 1.5px solid #e74c3c; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; min-width: 72px; font-family: 'Noto Sans KR', sans-serif; }
     .btn-return:disabled { color: #ccc; border-color: #ddd; cursor: not-allowed; }
     </style>
 </head>
