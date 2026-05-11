@@ -294,11 +294,11 @@ def all_umbrellas():
     </div>
     <div class="hint">학번 형식: 10자리 숫자</div>
     <div class="notice-box">
-        <div class="notice-title">📋 주의사항</div>
+        <div class="notice-title">📢 주의사항</div>
         <ol>
-            <li>본 사업은 국어국문학과 재학생 및 휴학생만 참여 가능합니다.</li>
+            <li>본 사업은 <strong>국어국문학과 재학생 및 휴학생</strong>만\n참여 가능합니다.</li>
             <li>반납 기한은 대여일로부터 <strong>5일</strong>입니다.</li>
-            <li>기한 내 미반납 시, 분실, 파손 시 부담금이 청구될 수 있습니다.</li>
+            <li>기한 내 미반납 시, 분실, 파손 시 부담금이\n청구될 수 있습니다.</li>
         </ol>
     </div>
     <div class="umbrella-list" style="margin-top:16px;">
