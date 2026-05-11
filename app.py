@@ -267,7 +267,11 @@ def all_umbrellas():
     .input-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
     .input-row input { width: 100%; padding: 14px 16px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 1rem; outline: none; transition: border 0.2s; font-family: 'Noto Sans KR', sans-serif; }
     .input-row input:focus { border-color: #4a90e2; }
-    .hint { font-size: 0.78rem; color: #aaa; margin-bottom: 20px; }
+    .hint { font-size: 0.78rem; color: #aaa; margin-bottom: 14px; }
+    .notice-box { background: #f8f9fb; border: 1.5px solid #dce1ea; border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; }
+    .notice-box .notice-title { font-size: 0.82rem; font-weight: 700; color: #555; margin-bottom: 8px; letter-spacing: 0.3px; }
+    .notice-box ol { padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+    .notice-box ol li { font-size: 0.8rem; color: #666; line-height: 1.5; }
     .msg { font-size: 0.85rem; color: #e74c3c; min-height: 20px; margin-bottom: 16px; font-weight: 500; }
     .umbrella-list { display: flex; flex-direction: column; gap: 10px; }
     .umbrella-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-radius: 12px; background: #f8f9fb; border: 1.5px solid #eee; }
@@ -289,6 +293,14 @@ def all_umbrellas():
         <input type="text" id="student_id" placeholder="학번 (10자리)" value="{{ student_id }}">
     </div>
     <div class="hint">학번 형식: 10자리 숫자</div>
+    <div class="notice-box">
+        <div class="notice-title">📋 주의사항</div>
+        <ol>
+            <li>본 사업은 국어국문학과 재학생 및 휴학생만 참여 가능합니다.</li>
+            <li>반납 기한은 대여일로부터 <strong>5일</strong>입니다.</li>
+            <li>기한 내 미반납 시, 분실, 파손 시 부담금이 청구될 수 있습니다.</li>
+        </ol>
+    </div>
     <div class="umbrella-list" style="margin-top:16px;">
     {% for u in umbrellas %}
         <div class="umbrella-item" id="item-{{ u.id }}">
