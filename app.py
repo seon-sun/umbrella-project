@@ -298,7 +298,7 @@ def all_umbrellas():
         <ol>
             <li>본 사업은 <strong>국어국문학과 재학생 및 휴학생</strong>만<br>참여 가능합니다.</li>
             <li>반납 기한은 대여일로부터 <strong>5일</strong>입니다.</li>
-            <li>기한 내 미반납 시, 분실, 파손 시 <strong>부담금이</strong><br>청구될 수 있습니다.</li>
+            <li>기한 내 미반납 시, 분실, 파손 시 <strong>부담금</strong>이<br>청구될 수 있습니다.</li>
         </ol>
     </div>
     <div class="umbrella-list" style="margin-top:16px;">
