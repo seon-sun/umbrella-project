@@ -1,4 +1,5 @@
 from flask import Flask, request, render_template_string, redirect, send_file, jsonify
+import json
 import json as _json
 import base64 as _base64
 import struct as _struct
@@ -67,6 +68,13 @@ def init_db():
             student_id TEXT,
             student_name TEXT,
             rented_at TIMESTAMP
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+            endpoint TEXT PRIMARY KEY,
+            subscription JSONB NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
         )
     """)
     cur.execute("SELECT COUNT(*) as cnt FROM umbrellas")
@@ -183,12 +191,21 @@ def serve_sw():
 # ------------------
 @app.route("/push/subscribe", methods=["POST"])
 def push_subscribe():
-    global _push_subscriptions
     sub = request.get_json()
-    # 중복 방지
     endpoint = sub.get('endpoint', '')
-    _push_subscriptions = [s for s in _push_subscriptions if s.get('endpoint') != endpoint]
-    _push_subscriptions.append(sub)
+    if not endpoint:
+        return jsonify({"ok": False})
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO push_subscriptions (endpoint, subscription)
+            VALUES (%s, %s)
+            ON CONFLICT (endpoint) DO UPDATE SET subscription = EXCLUDED.subscription
+        """, (endpoint, json.dumps(sub)))
+        conn.commit()
+    finally:
+        conn.close()
     return jsonify({"ok": True})
 
 @app.route("/push/vapid-public-key")
@@ -199,21 +216,39 @@ def vapid_public_key():
 # 푸시 알림 전송 함수
 # ------------------
 def send_push_notification(title, body):
-    global _push_subscriptions
-    if not _push_subscriptions:
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT endpoint, subscription FROM push_subscriptions")
+        rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    if not rows:
         return
 
-    failed = []
-    for sub in _push_subscriptions:
+    failed_endpoints = []
+    for endpoint, sub_data in rows:
         try:
+            if isinstance(sub_data, str):
+                sub = json.loads(sub_data)
+            else:
+                sub = sub_data
             _do_push(sub, title, body)
         except Exception as e:
             print(f"[Push] 실패: {e}")
-            failed.append(sub.get('endpoint', ''))
+            failed_endpoints.append(endpoint)
 
-    # 실패한 구독 제거
-    _push_subscriptions = [s for s in _push_subscriptions
-                            if s.get('endpoint') not in failed]
+    # 실패한 구독 삭제
+    if failed_endpoints:
+        conn = get_db()
+        try:
+            cur = conn.cursor()
+            for ep in failed_endpoints:
+                cur.execute("DELETE FROM push_subscriptions WHERE endpoint=%s", (ep,))
+            conn.commit()
+        finally:
+            conn.close()
 
 def _do_push(sub, title, body):
     import json, base64, time, struct, hmac, hashlib
