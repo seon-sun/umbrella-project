@@ -127,9 +127,12 @@ def check_overdue():
             days = (now.date() - rented_at_kst.date()).days
             if days >= 6:  # 6일째 = 1일 연체
                 overdue_days = days - 5
-                send_discord(
-                    f"⚠️ [연체 {overdue_days}일차] {row['student_name']} / {row['student_id']} → {row['id']}번 우산 "
-                    f"(대여일: {rented_at_kst.strftime('%Y-%m-%d')})"
+                msg = (f"⚠️ [연체 {overdue_days}일차] {row['student_name']} / {row['student_id']} → {row['id']}번 우산 "
+                       f"(대여일: {rented_at_kst.strftime('%Y-%m-%d')})")
+                send_discord(msg)
+                send_push_notification(
+                    f"⚠️ 연체 {overdue_days}일차",
+                    f"{row['student_name']} / {row['id']}번 우산 (대여일: {rented_at_kst.strftime('%m/%d')})"
                 )
     finally:
         conn.close()

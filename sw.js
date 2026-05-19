@@ -22,7 +22,7 @@ self.addEventListener('push', e => {
             icon: '/static/icon-192.png',
             badge: '/static/icon-192.png',
             vibrate: [200, 100, 200],
-            tag: 'umbrella-alert',
+            tag: 'umbrella-' + Date.now(),
             renotify: true
         })
     );
