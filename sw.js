@@ -13,7 +13,30 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// 캐싱 완전 비활성화 - 항상 네트워크에서 가져옴
 self.addEventListener('fetch', event => {
   event.respondWith(fetch(event.request));
+});
+
+// 푸시 알림 수신
+self.addEventListener('push', event => {
+  let data = { title: '동백 우산', body: '새 알림이 있습니다.' };
+  if (event.data) {
+    try { data = event.data.json(); } catch(e) {}
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/static/icon-192.png',
+      badge: '/static/icon-192.png',
+      vibrate: [200, 100, 200],
+    })
+  );
+});
+
+// 알림 클릭 시 앱 열기
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(
+    clients.openWindow('/admin?pass=0927')
+  );
 });

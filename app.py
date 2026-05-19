@@ -1,4 +1,14 @@
-from flask import Flask, request, render_template_string, redirect, send_file
+from flask import Flask, request, render_template_string, redirect, send_file, jsonify
+import json as _json
+import base64 as _base64
+import struct as _struct
+import hashlib as _hashlib
+import hmac as _hmac
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
+import time as _time
+import urllib.request as _urllib_req
 import psycopg2
 import psycopg2.extras
 import os
@@ -7,6 +17,14 @@ import requests
 from datetime import datetime, timezone, timedelta
 
 app = Flask(__name__)
+
+# VAPID 키 (Render 환경변수로 설정)
+VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "BNaQZ6EhsDnGxcpJMynSVO4yBC2FbQsiwuYlcxapgn0FJeICjfp6wZUzUJEpPdf06c-nN-5Qg7DDvRHobWTzFiw")
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "fH2xectzXHdHQxF5gmigzOYlO53hIkQJyL0y61APhD8")
+VAPID_CLAIMS = {"sub": "mailto:admin@dongbaek.com"}
+
+# 푸시 구독 저장소 (메모리)
+_push_subscriptions = []
 
 # ------------------
 # 메모리 캐시
@@ -156,6 +174,138 @@ def serve_sw():
                      mimetype='application/javascript')
     resp.headers['Service-Worker-Allowed'] = '/'
     return resp
+
+# ------------------
+# 푸시 알림 구독 저장
+# ------------------
+@app.route("/push/subscribe", methods=["POST"])
+def push_subscribe():
+    global _push_subscriptions
+    sub = request.get_json()
+    # 중복 방지
+    endpoint = sub.get('endpoint', '')
+    _push_subscriptions = [s for s in _push_subscriptions if s.get('endpoint') != endpoint]
+    _push_subscriptions.append(sub)
+    return jsonify({"ok": True})
+
+@app.route("/push/vapid-public-key")
+def vapid_public_key():
+    return VAPID_PUBLIC_KEY, 200, {'Content-Type': 'text/plain'}
+
+# ------------------
+# 푸시 알림 전송 함수
+# ------------------
+def send_push_notification(title, body):
+    global _push_subscriptions
+    if not _push_subscriptions:
+        return
+
+    failed = []
+    for sub in _push_subscriptions:
+        try:
+            _do_push(sub, title, body)
+        except Exception as e:
+            print(f"[Push] 실패: {e}")
+            failed.append(sub.get('endpoint', ''))
+
+    # 실패한 구독 제거
+    _push_subscriptions = [s for s in _push_subscriptions
+                            if s.get('endpoint') not in failed]
+
+def _do_push(sub, title, body):
+    import json, base64, time, struct, hmac, hashlib
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
+    import urllib.request, urllib.error
+
+    endpoint = sub['endpoint']
+    payload = json.dumps({"title": title, "body": body, "icon": "/static/icon-192.png"})
+    payload_bytes = payload.encode('utf-8')
+
+    # 수신자 공개키 & auth
+    p256dh = sub['keys']['p256dh']
+    auth = sub['keys']['auth']
+
+    # Base64url 디코드
+    def b64d(s):
+        s += '=' * (4 - len(s) % 4)
+        return base64.urlsafe_b64decode(s)
+
+    receiver_pub_bytes = b64d(p256dh)
+    auth_secret = b64d(auth)
+
+    # ECDH
+    sender_key = ec.generate_private_key(ec.SECP256R1())
+    sender_pub = sender_key.public_key()
+    receiver_pub = ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), receiver_pub_bytes)
+    shared_secret = sender_key.exchange(ec.ECDH(), receiver_pub)
+
+    sender_pub_bytes = sender_pub.public_bytes(
+        serialization.Encoding.X962,
+        serialization.PublicFormat.UncompressedPoint
+    )
+
+    # HKDF for content encryption (RFC 8291)
+    def hkdf(salt, ikm, info, length):
+        import hmac, hashlib
+        prk = hmac.new(salt, ikm, hashlib.sha256).digest()
+        t = b""
+        okm = b""
+        for i in range(1, -(-length // 32) + 1):
+            t = hmac.new(prk, t + info + bytes([i]), hashlib.sha256).digest()
+            okm += t
+        return okm[:length]
+
+    salt = os.urandom(16)
+    ikm_info = b"WebPush: info\x00" + receiver_pub_bytes + sender_pub_bytes
+    ikm = hkdf(auth_secret, shared_secret, ikm_info, 32)
+    key = hkdf(salt, ikm, b"Content-Encoding: aes128gcm\x00", 16)
+    nonce_base = hkdf(salt, ikm, b"Content-Encoding: nonce\x00", 12)
+
+    # AES-128-GCM 암호화
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    aesgcm = AESGCM(key)
+    padded = payload_bytes + b"\x02"
+    encrypted = aesgcm.encrypt(nonce_base, padded, None)
+
+    # 헤더 구성 (RFC 8291)
+    record_size = struct.pack('>I', len(encrypted) + 16)
+    content = salt + record_size + bytes([len(sender_pub_bytes)]) + sender_pub_bytes + encrypted
+
+    # VAPID JWT
+    priv_num = int.from_bytes(b64d(VAPID_PRIVATE_KEY), 'big')
+    vapid_private = ec.derive_private_key(priv_num, ec.SECP256R1())
+
+    from urllib.parse import urlparse
+    parsed = urlparse(endpoint)
+    audience = f"{parsed.scheme}://{parsed.netloc}"
+    exp = int(time.time()) + 43200
+
+    header = base64.urlsafe_b64encode(json.dumps({"typ":"JWT","alg":"ES256"}).encode()).rstrip(b'=')
+    claims_data = base64.urlsafe_b64encode(json.dumps({"aud": audience, "exp": exp, "sub": "mailto:admin@dongbaek.com"}).encode()).rstrip(b'=')
+    signing_input = header + b'.' + claims_data
+    sig = vapid_private.sign(signing_input, ec.ECDSA(hashes.SHA256()))
+    r, s = decode_dss_signature(sig)
+    jwt_sig = base64.urlsafe_b64encode(r.to_bytes(32,'big') + s.to_bytes(32,'big')).rstrip(b'=')
+    jwt_token = (signing_input + b'.' + jwt_sig).decode()
+
+    vapid_pub_b64 = base64.urlsafe_b64encode(
+        vapid_private.public_key().public_bytes(
+            serialization.Encoding.X962,
+            serialization.PublicFormat.UncompressedPoint
+        )
+    ).rstrip(b'=').decode()
+
+    headers = {
+        'Content-Type': 'application/octet-stream',
+        'Content-Encoding': 'aes128gcm',
+        'Authorization': f'vapid t={jwt_token},k={vapid_pub_b64}',
+        'TTL': '86400',
+    }
+
+    req = urllib.request.Request(endpoint, data=content, headers=headers, method='POST')
+    urllib.request.urlopen(req, timeout=5)
 # ------------------
 @app.route("/u/status", methods=["GET"])
 def umbrella_status():
@@ -198,6 +348,7 @@ def umbrella_action():
             conn.commit()
             refresh_cache()
             send_discord(f"🟢 [대여] {student_name} / {student_id} → {uid}번 우산")
+            send_push_notification("🌂 우산 대여", f"{student_name} / {uid}번 우산 대여")
             return {"ok": True, "msg": f"{uid}번 우산 대여 완료", "new_status": "rented",
                     "student_id": student_id, "student_name": student_name}
 
@@ -214,6 +365,7 @@ def umbrella_action():
             conn.commit()
             refresh_cache()
             send_discord(f"🔴 [반납] {student_name} / {student_id} → {uid}번 우산")
+            send_push_notification("🌂 우산 반납", f"{student_name} / {uid}번 우산 반납")
             return {"ok": True, "msg": f"{uid}번 우산 반납 완료", "new_status": "available"}
 
         return {"ok": False, "msg": "알 수 없는 action"}, 400
@@ -497,7 +649,26 @@ def admin_page():
     <link rel="apple-touch-icon" href="/static/icon-192.png">
     <script>
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
+        navigator.serviceWorker.register('/sw.js').then(async reg => {
+            // 푸시 구독
+            if ('PushManager' in window) {
+                try {
+                    const vapidKey = await fetch('/push/vapid-public-key').then(r => r.text());
+                    const sub = await reg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: vapidKey
+                    });
+                    await fetch('/push/subscribe', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(sub.toJSON())
+                    });
+                    console.log('[Push] 구독 완료');
+                } catch(e) {
+                    console.log('[Push] 구독 실패:', e);
+                }
+            }
+        }).catch(() => {});
     }
     </script>
     <style>
