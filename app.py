@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template_string, redirect
+from flask import Flask, request, render_template_string, redirect, send_file
 import psycopg2
 import psycopg2.extras
 import os
@@ -135,8 +135,27 @@ def health():
             check_overdue()
     return "OK", 200
 
-# ------------------
-# ✅ 폴링 엔드포인트 (실시간 동기화)
+@app.route("/static/manifest.json")
+def serve_manifest():
+    return send_file(os.path.join(os.path.dirname(__file__), 'manifest.json'),
+                     mimetype='application/manifest+json')
+
+@app.route("/static/icon-192.png")
+def serve_icon192():
+    return send_file(os.path.join(os.path.dirname(__file__), 'icon-192.png'),
+                     mimetype='image/png')
+
+@app.route("/static/icon-512.png")
+def serve_icon512():
+    return send_file(os.path.join(os.path.dirname(__file__), 'icon-512.png'),
+                     mimetype='image/png')
+
+@app.route("/sw.js")
+def serve_sw():
+    resp = send_file(os.path.join(os.path.dirname(__file__), 'sw.js'),
+                     mimetype='application/javascript')
+    resp.headers['Service-Worker-Allowed'] = '/'
+    return resp
 # ------------------
 @app.route("/u/status", methods=["GET"])
 def umbrella_status():
@@ -470,6 +489,17 @@ def admin_page():
 
     html_admin = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4a90e2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="우산관리">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+    </script>
     <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f6fa; color: #333; }
