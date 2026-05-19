@@ -649,26 +649,45 @@ def admin_page():
     <link rel="apple-touch-icon" href="/static/icon-192.png">
     <script>
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').then(async reg => {
-            // 푸시 구독
-            if ('PushManager' in window) {
-                try {
-                    const vapidKey = await fetch('/push/vapid-public-key').then(r => r.text());
-                    const sub = await reg.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: vapidKey
-                    });
-                    await fetch('/push/subscribe', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(sub.toJSON())
-                    });
-                    console.log('[Push] 구독 완료');
-                } catch(e) {
-                    console.log('[Push] 구독 실패:', e);
-                }
+        navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(async reg => {
+            // 기존 sw 즉시 업데이트
+            reg.update();
+
+            if (!('PushManager' in window)) return;
+
+            // 알림 권한 요청
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') return;
+
+            try {
+                // 기존 구독 해제 후 재구독 (키 변경 대비)
+                const existing = await reg.pushManager.getSubscription();
+                if (existing) await existing.unsubscribe();
+
+                const vapidKey = await fetch('/push/vapid-public-key').then(r => r.text());
+
+                // Base64 → Uint8Array 변환
+                const padding = '='.repeat((4 - vapidKey.length % 4) % 4);
+                const base64 = (vapidKey + padding).replace(/-/g, '+').replace(/_/g, '/');
+                const rawKey = atob(base64);
+                const keyArray = new Uint8Array(rawKey.length);
+                for (let i = 0; i < rawKey.length; i++) keyArray[i] = rawKey.charCodeAt(i);
+
+                const sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: keyArray
+                });
+
+                await fetch('/push/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(sub.toJSON())
+                });
+                console.log('[Push] 구독 완료');
+            } catch(e) {
+                console.log('[Push] 구독 실패:', e);
             }
-        }).catch(() => {});
+        }).catch(e => console.log('[SW] 등록 실패:', e));
     }
     </script>
     <style>
@@ -780,7 +799,11 @@ def admin_page():
     }, 3000);
     </script>
     """
-    return render_template_string(html_admin, umbrellas=umbrellas)
+    from flask import make_response
+    resp = make_response(render_template_string(html_admin, umbrellas=umbrellas))
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    resp.headers['Pragma'] = 'no-cache'
+    return resp
 
 # ------------------
 if __name__ == "__main__":
